@@ -123,7 +123,7 @@ progress.
 | **task_2** | Dropdown | None | Optional 2nd task (multi-task mode) |
 | **task_3** | Dropdown | None | Optional 3rd task (multi-task mode) |
 | **task_4** | Dropdown | None | Optional 4th task (multi-task mode) |
-| **user_prompt** | String | — | Custom instructions or additional context |
+| **user_prompt** | String | — | Optional additional information, question, or constraints. The selected task already loads its system prompt, so this is normally empty for standard vision tasks |
 | **context_size** | Integer | 8192 | Model context window (512–131072). Persisted on execute |
 | **max_tokens** | Integer | 2048 | Maximum tokens to generate (1–32768) |
 | **attention_mode** | Dropdown | auto | Transformers only — auto, flash_attention_2, sdpa, eager |
@@ -170,7 +170,15 @@ All advanced widgets are persisted to defaults on execute.
 | Input | Type | Description |
 |-------|------|-------------|
 | **images** | IMAGE | Optional. Image input for vision tasks and WD14 |
-| **text** | STRING | Optional. Text input for text processing tasks (overrides user_prompt) |
+| **system_prompt** | STRING | Optional complete instruction override. Connecting text switches the node to Direct Chat and bypasses the selected task's default prompt template |
+
+The connected `system_prompt` is not appended to the selected task. It replaces
+that task's built-in instructions, so the provided text must be self-contained:
+include the model's role, the complete objective, any rules or constraints, and
+the required output format. In this mode, `user_prompt` is the corresponding user
+message or source material. Leave `system_prompt` disconnected when you want to
+use a predefined task such as Detailed Description, Wan/LTX prompting, or Song
+Lyrics.
 
 ### Outputs
 
@@ -383,8 +391,12 @@ ONNX Runtime for SmilingWolf WD14 tagger models.
 | **Wan 2.2 Timeline 5s** | Optional | One paragraph using `(At 0 seconds: ...) ... (At 5 seconds: ...)` markers (per-second beats) |
 | **Wan 2.2 Timeline 5s 2s** | Optional | Slower 3-beat timeline `(At 0s)(At 2s)(At 4s)` — each beat unfolds before the next |
 | **Wan 2.2 Timeline 5s 3s** | Optional | Slowest 2-beat timeline `(At 0s)(At 3s)` — long, unhurried action arcs |
+| **Wan 2.2 Scene 10s** | Optional | Two continuous 5-second scene paragraphs with subject and setting continuity |
+| **Wan 2.2 Timeline 10s** | Optional | Two 5-second timeline paragraphs with continuous action and per-second beats |
 | **Wan 2.2 Scene 20s** | Optional | Four cinematic paragraphs (5s each) with maintained character / scene continuity |
 | **Wan 2.2 Timeline 20s** | Optional | Four timeline paragraphs (5s each), each with per-second markers |
+| **Wan 2.2 CN Atomic** | Optional | Chinese Wan prompt using explicit initial state, ordered physical actions, and final state |
+| **LTX 2.3 I2V** | Recommended | One image-to-video paragraph combining the reference image with requested motion, sound, dialogue, and style |
 
 ### Vision Tasks (all VLM families)
 
@@ -419,6 +431,7 @@ ONNX Runtime for SmilingWolf WD14 tagger models.
 | **Natural Language to Tags** | Convert sentences to tags |
 | **Translate to English** | Translate to English |
 | **Short Story** | Generate a short story |
+| **Song Lyrics** | Turn a short story, theme, or song concept into structured, paste-ready lyrics |
 | **Summarize** | Summarize text |
 | **Prompt Variations** | Generate 5 variations of the same action with different manner / speed / emotion, separated by `---` |
 
@@ -434,7 +447,7 @@ Chain 2–4 sequential tasks where each task's output becomes the input for the 
 
 1. Enable the **Multi-Task** chip on the mode bar
 2. Set **task_2** (and optionally task_3, task_4)
-3. **Task 1** runs with your original input (image + user_prompt or text)
+3. **Task 1** loads its task-specific system prompt and runs with the image plus any optional `user_prompt` context
 4. **Task 2** receives the text output from Task 1
 5. **Task 3/4** continue the chain
 6. Final output is returned
@@ -521,7 +534,8 @@ Docker backends are configured in `docker_config.json`:
 2. Select model: `Qwen2.5-VL-3B-Instruct` (Transformers)
 3. Set task: **Detailed Description**
 4. Connect an image to `images`
-5. Queue Prompt
+5. Leave `user_prompt` empty unless the task needs extra context
+6. Queue Prompt
 
 ### WD14 Tagging
 
@@ -534,8 +548,45 @@ Docker backends are configured in `docker_config.json`:
 
 1. Select an LLM model (e.g. GGUF text-only)
 2. Set task: **Expand Text**
-3. Type prompt in `user_prompt` or connect via `text`
+3. Type the source text in `user_prompt`
 4. Queue Prompt
+
+### Image-to-Video Prompt (Wan or LTX)
+
+1. Select a vision-language model and connect the intended starting image to `images`
+2. Choose the Wan task that matches the target duration and format, or choose **LTX 2.3 I2V**
+3. In `user_prompt`, describe what should happen: motion, action, dialogue, sound, style, pacing, or an explicitly requested camera move
+4. Queue Prompt
+5. Send the generated text to the corresponding video workflow
+
+The connected image supplies the visual starting point, including the subject's
+appearance and the existing setting. `user_prompt` supplies the intended event.
+The selected task's built-in system prompt combines both into the format expected
+by Wan or LTX, so no custom `system_prompt` connection is needed.
+
+### Song Lyrics
+
+1. Select a text-capable LLM and set task to **Song Lyrics**
+2. Enter a short story, theme, mood, or song concept in `user_prompt`
+3. Optionally include genre, language, tempo, point of view, or desired structure
+4. Queue Prompt
+5. Copy the returned title, production line, lyric sections, and structure into Suno, Mureka, or another music-generation tool
+
+Here `user_prompt` is the creative source rather than an optional correction.
+The task's built-in system prompt turns that source into singable, consistently
+formatted lyrics; connecting a separate `system_prompt` is unnecessary unless
+you intentionally want to replace the entire task behavior.
+
+### Direct Chat with a Connected System Prompt
+
+1. Connect a STRING containing the complete custom instructions to `system_prompt`
+2. Include every important role, goal, constraint, and output-format rule in that text
+3. Put the request, question, or source content in `user_prompt`
+4. Queue Prompt
+
+The node changes to **Direct Chat** while the connection is present. The selected
+task's system prompt is not combined with the connected text, so omitted rules
+cannot be inherited from that task.
 
 ### Docker Backend (Ollama)
 

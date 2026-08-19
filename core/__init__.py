@@ -16,7 +16,7 @@ def _read_pyproject_version() -> str:
             return match.group(1)
     except OSError:
         pass
-    return "1.0.0"
+    return "1.0.1"
 
 
 __version__ = _read_pyproject_version()

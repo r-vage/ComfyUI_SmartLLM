@@ -14,7 +14,7 @@ class TEXTS(Enum):
 
 
 class CATEGORY(Enum):
-    MAIN = "🌒 Eclipse"
+    MAIN = "🌒 Smart LM Loader"
     CONDITIONING = "/ Conditioning"
     CONVERSION = "/ Conversion"
     LOADER = "/ Loader"

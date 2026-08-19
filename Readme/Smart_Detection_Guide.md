@@ -75,7 +75,7 @@ The **Smart Detection** node is a unified detection node with Florence-2, Qwen V
 | **model_name** | Dropdown | — | Detection model. Suffix indicates backend |
 | **quantization** | Dropdown | Q4_K_M | GGUF only — quantization variant |
 | **task** | Dropdown | — | Detection task. Florence: 7 tasks, Qwen: 2 tasks, YOLO: hidden |
-| **user_input** | String | — | Grounding query. Florence: phrase to locate. Qwen: natural language. YOLO: optional class filter (semicolon-separated, e.g. `face;person`). Leave empty to detect all |
+| **user_input** | String | — | Grounding query. Florence: focused phrases such as `eye;face;mouth`. Qwen: natural language. YOLO: optional filter among classes supported by the selected model, such as `face` for a face detector. Leave empty to detect all supported classes |
 
 #### Detection Parameters
 
@@ -118,6 +118,35 @@ The **Smart Detection** node is a unified detection node with Florence-2, Qwen V
 | **mask** | MASK | Binary mask of all detections combined |
 | **segs** | SEGS | Impact Pack compatible SEGS tuple `((h, w), [SEG, ...])` |
 | **data** | JSON | Detection data dict: `bboxes`, `labels`, `confidences`, `coord_range`, `backend`, `model`, `task` |
+
+---
+
+## Detection to Bboxes
+
+`Detection to Bboxes [Eclipse]` is included with SmartLLM so structured detection
+results can be converted without installing Eclipse. Connect the same source
+image to its `image` input and connect Smart Detection's `data` output to
+`data_opt`.
+
+The node supports regular `bboxes`, OCR `quad_boxes`, and segmentation
+`polygons`. It returns masks plus standardized `BBOXES` values for downstream
+tools such as SAM2 Ultra.
+
+| Control | Default | Purpose |
+|---------|---------|---------|
+| **get_mask_from_image** | OFF | Detect regions directly from the image instead of using `data_opt` |
+| **detect_color** | red | Image-analysis channel: brightness, red, green, or blue |
+| **threshold** | 250 | Minimum channel value used by direct image detection |
+| **min_area** | 500 | Ignore smaller direct-image contours |
+| **invert** | OFF | Swap black and white in returned masks |
+| **grow** | 0 | Dilate positive values or erode negative values |
+| **blur** | 0.0 | Apply Gaussian blur to mask edges |
+| **combine_masks** | ON | Merge detections into one mask; disable for separate masks |
+| **indices** | `0,` | When masks are separate, choose indices; a trailing comma includes all following indices |
+
+`detect_color`, `threshold`, and `min_area` appear only in direct-image mode.
+`indices` appears only when `combine_masks` is disabled. These visibility rules
+work in both classic rendering and Nodes 2.0.
 
 ---
 
@@ -192,7 +221,7 @@ The **Smart Detection** node is a unified detection node with Florence-2, Qwen V
 **Class Filtering:**
 Set `user_input` to semicolon-separated class names to filter detections:
 - `face` — only face detections
-- `face;person` — faces and persons
+- `eye;face` — eyes and faces, when both classes exist in the selected model
 - Empty — all detected classes
 
 Matching is fuzzy: substring and plural/singular tolerance (`eye` matches `eyes`, `breast` matches `Breasts`).
@@ -290,9 +319,9 @@ Smart Detection → segs → SEGS Preview → preview
 
 1. Select model: `Florence-2-base`
 2. Set task: **Caption to Phrase Grounding**
-3. Set user_input: `the red car`
+3. Set user_input: `eye;face;mouth`
 4. Connect an image
-5. Output: bounding box around the red car
+5. Output: merged regions for the requested facial parts
 
 ### Person Segmentation (YOLO -seg)
 
@@ -303,9 +332,9 @@ Smart Detection → segs → SEGS Preview → preview
 
 ### YOLO Class Filtering
 
-1. Select any YOLO model
-2. Set user_input: `face;hand`
-3. Only face and hand detections are returned
+1. Select a YOLO model whose class list contains the target parts
+2. Set `user_input` to one or more supported class names separated by semicolons
+3. Only matching detections are returned
 4. Leave user_input empty to detect all classes
 
 ### Region Captioning (Florence)

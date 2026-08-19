@@ -16,7 +16,7 @@ if _CONFLICTS:
         )
     log.error(
         "Startup",
-        "Remove or disable the legacy pack, or update Eclipse to a release where Smart LM was extracted, then restart ComfyUI.",
+        "Remove or disable the legacy pack, or update Eclipse to a release where the conflicting SmartLLM nodes were extracted, then restart ComfyUI.",
     )
 else:
     WEB_DIRECTORY = "./js"
@@ -79,10 +79,17 @@ class SmartLLMExtension(ComfyExtension):
     async def get_node_list(self) -> list[type[io.ComfyNode]]:
         if _CONFLICTS:
             return []
+        from .py.RvConversion_DetectionToBboxes import (
+            RvConversion_DetectionToBboxes,
+        )
         from .py.RvLoader_SmartDetection import RvLoader_Detection
         from .py.RvLoader_SmartModelLoader_LM import RvLoader_SmartModelLoader_LM
 
-        return [RvLoader_SmartModelLoader_LM, RvLoader_Detection]
+        return [
+            RvLoader_SmartModelLoader_LM,
+            RvLoader_Detection,
+            RvConversion_DetectionToBboxes,
+        ]
 
 
 async def comfy_entrypoint() -> SmartLLMExtension:

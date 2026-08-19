@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-08-19
+
+### Version: 1.0.1
+
+- **Refactor**
+  - Move Smart LM Loader and Smart Detection from the Eclipse node menu into the pack-owned `Smart LM Loader → Loader` menu without changing their serialized IDs.
+  - Move Detection to Bboxes and its conditional-widget frontend from Eclipse into the pack-owned `Smart LM Loader → Conversion` menu, preserving its data, mask, bbox, list, and workflow contracts.
+
+- **Fix**
+  - Extend the compatibility guard to reject an active Eclipse release that still registers Detection to Bboxes, preventing duplicate node and frontend ownership during partial upgrades.
+
+- **Docs**
+  - Replace the compact landing page with a Nodes 2.0 visual walkthrough covering Smart LM modes, multi-task chaining, WD14 tagging, Smart Detection, detection conversion, and Registry Manager model acquisition.
+  - Clarify task-owned system prompts, optional `user_prompt` context, complete connected-system-prompt overrides, focused-part detection, Wan/LTX image-to-video prompting, and paste-ready song lyric generation.
+  - Add the backend-specific copy-paste model registry reference transferred from Eclipse, aligned with the current YOLO `repo_id` schema and standard model directories.
+
+**Changed files:**
+- `core/compatibility.py`
+- `core/keys.py`
+- `js/smartllm-detection-to-bboxes.js` (new)
+- `README.md`
+- `Readme/assets/*.png` (new)
+- `Readme/Smart_LM_Loader_Guide.md`
+- `Readme/Smart_Detection_Guide.md`
+- `Readme/Model_Repos_Reference_CP.md` (new)
+- `py/RvConversion_DetectionToBboxes.py` (new)
+- `pyproject.toml`
+
 ## 2026-08-17
 
 ### Version: 1.0.0

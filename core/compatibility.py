@@ -41,12 +41,16 @@ def find_conflicts(repo_root: Path) -> list[str]:
         candidate = custom_nodes / name
         if candidate.resolve(strict=False) == repo_root.resolve(strict=False):
             continue
-        if (
-            _active_pack(candidate)
-            and (candidate / "core" / "sml").is_dir()
-            and (candidate / "py" / "RvLoader_SmartModelLoader_LM.py").is_file()
-        ):
+        if not _active_pack(candidate):
+            continue
+        if (candidate / "core" / "sml").is_dir() and (
+            candidate / "py" / "RvLoader_SmartModelLoader_LM.py"
+        ).is_file():
             conflicts.append(f"Eclipse still includes Smart LM: {candidate}")
+        if (candidate / "py" / "RvConversion_DetectionToBboxes.py").is_file():
+            conflicts.append(
+                f"Eclipse still includes Detection to Bboxes: {candidate}"
+            )
 
     registered = _registered_smart_lm_routes()
     if registered:
