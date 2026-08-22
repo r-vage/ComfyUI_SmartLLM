@@ -11,7 +11,6 @@ import {
     smartResize,
 } from './smartllm-widget-performance-utils.js';
 import {
-    injectComboChipCSS,
     createComboChipWidget
 } from './smartllm-combo-chip.js';
 import {
@@ -27,7 +26,6 @@ const LEGACY_NODE_NAMES = new Set([
     "Smart Language Model Loader v2 [Eclipse]",
     "Smart Language Model Loader v3 [SmartLML]",
 ]);
-injectComboChipCSS('smartllm-loader');
 const MODE_OPTIONS = [{
     label: 'Cleanup',
     tooltip: 'VRAM garbage collection — clear VRAM cache and run Python garbage collection before model loading'

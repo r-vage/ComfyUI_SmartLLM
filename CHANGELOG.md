@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-08-22
+
+### Version: 1.0.2
+
+- **Feat**
+  - **Configurable chip accent:** Add a SmartLLM-owned color picker that persists a validated hexadecimal accent in private `config.json` and applies derived hover, border, trigger, and contrast colors to chip bars and selected chips immediately.
+  - **Aligned chip popovers:** Match Smart LM Loader and Smart Detection popup widths to their rendered chip bars without stretching or shrinking individual chips.
+
+- **Fix**
+  - Set the Smart LM Registry Editor and its model-download surface background to `#3a3a3a`.
+  - Restore the configured chip-bar surface and interactive popup on Smart LM Loader and Smart Detection by keeping each widget's CSS prefix synchronized with its injected stylesheet in both Nodes 2.0 and classic renderers; also release deferred outside-click listeners whenever the popup closes.
+
+**Changed files:**
+- `.defaults/config.json.example`
+- `.defaults/.manifest.json`
+- `core/config_store.py`
+- `core/sml/config_templates.py`
+- `core/sml/server_endpoints.py`
+- `js/smartllm-combo-chip.js`
+- `js/smartllm-detection.js`
+- `js/smartllm-loader.js`
+- `js/smartllm-registry-manager.js`
+- `js/smartllm-settings.js`
+- `README.md`
+- `pyproject.toml`
+- `tests/test_sml_endpoint_security.py`
+- `tests/test_sml_model_files.py`
+- `tools/chip-color-harness.mjs` (new)
+- `tools/combo-chip-harness.mjs` (new)
+
 ## 2026-08-19
 
 ### Version: 1.0.1

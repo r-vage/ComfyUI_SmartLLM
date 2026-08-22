@@ -10,12 +10,10 @@ import {
     isVueMode,
 } from './smartllm-widget-performance-utils.js';
 import {
-    injectComboChipCSS,
     createComboChipWidget
 } from './smartllm-combo-chip.js';
 import { onSmartLLMRegistryChanged } from './smartllm-registry-events.js';
 const NODE_NAME = "Smart Detection [Eclipse]";
-injectComboChipCSS('smartllm-detection');
 const MODE_OPTIONS = [{
     label: 'Cleanup',
     tooltip: 'VRAM garbage collection — clear VRAM cache and run Python garbage collection before loading the model'

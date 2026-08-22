@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from ..config_store import (
+    DEFAULT_CHIP_COLOR as DEFAULT_CHIP_COLOR,  # noqa: PLC0414 -- public facade
     ensure_config_exists as ensure_config_exists,
     get_config_snapshot as get_config_snapshot,
     get_config_value as get_config_value,
     invalidate_config_cache as invalidate_config_cache,
+    normalize_chip_color as normalize_chip_color,  # noqa: PLC0414 -- public facade
     update_config_value as update_config_value,
     update_config_values as update_config_values,
 )

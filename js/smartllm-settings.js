@@ -1,4 +1,9 @@
 import { app } from './comfy/index.js';
+import {
+    applyComboChipColor,
+    DEFAULT_COMBO_CHIP_COLOR,
+    normalizeComboChipColor,
+} from './smartllm-combo-chip.js';
 
 const SETTINGS_CATEGORY = ['Smart LM Loader', 'Configuration'];
 const TOKEN_MASK = '••••••••';
@@ -54,6 +59,7 @@ app.registerExtension({
             log_level: 'warning',
             llm_models_path: 'LLM',
             retry_download_attempts: 2,
+            chip_color: DEFAULT_COMBO_CHIP_COLOR,
             hf_token_configured: false,
             modelscope_token_configured: false,
         };
@@ -63,6 +69,7 @@ app.registerExtension({
         } catch (error) {
             console.error('[SmartLLM] Failed to fetch configuration:', error);
         }
+        const chipColor = applyComboChipColor(config.chip_color);
 
         app.ui.settings.addSetting({
             id: 'SmartLLM.ModelsPath',
@@ -75,6 +82,24 @@ app.registerExtension({
             onChange: afterInitialChange(async (value) => {
                 try { await updateConfig({ llm_models_path: value }); }
                 catch (error) { console.error('[SmartLLM] Failed to update model path:', error); }
+            }),
+        });
+        app.ui.settings.addSetting({
+            id: 'SmartLLM.ChipColor',
+            category: [...SETTINGS_CATEGORY, 'ChipColor'],
+            name: '🎨 Chip Color',
+            type: 'color',
+            tooltip: 'Accent color for SmartLLM chip bars and selected chips.',
+            defaultValue: `#${chipColor}`,
+            sortOrder: 250,
+            onChange: afterInitialChange(async (value) => {
+                const normalized = normalizeComboChipColor(value);
+                try {
+                    await updateConfig({ chip_color: normalized });
+                    applyComboChipColor(normalized);
+                } catch (error) {
+                    console.error('[SmartLLM] Failed to update chip color:', error);
+                }
             }),
         });
         app.ui.settings.addSetting({

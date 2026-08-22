@@ -27,6 +27,18 @@ _CONFIG_CACHE_TTL = 5.0
 _config_cache: dict[str, Any] = {}
 _config_cache_time = 0.0
 _config_cache_lock = threading.RLock()
+DEFAULT_CHIP_COLOR = "2a5a3a"
+
+
+def normalize_chip_color(value: Any) -> str:
+    if not isinstance(value, str):
+        raise TypeError("Chip color must be a six-digit hexadecimal string")
+    normalized = value.strip().removeprefix("#").lower()
+    if len(normalized) != 6 or any(
+        character not in "0123456789abcdef" for character in normalized
+    ):
+        raise ValueError("Chip color must be a six-digit hexadecimal string")
+    return normalized
 
 
 def _fallback_config() -> dict[str, Any]:
@@ -34,6 +46,7 @@ def _fallback_config() -> dict[str, Any]:
         "_comments": {
             "description": "SmartLLM ComfyUI Node Configuration",
             "log_level_options": "error | warning | info | debug",
+            "chip_color": "Six-digit hexadecimal accent for SmartLLM chip bars and selected chips.",
         },
         "log_level": "warning",
         "llm_models_path": "LLM",
@@ -42,6 +55,7 @@ def _fallback_config() -> dict[str, Any]:
         "hf_token": "",
         "modelscope_token": "",
         "few_shot_training_file": "llm_few_shot_training.json",
+        "chip_color": DEFAULT_CHIP_COLOR,
     }
 
 

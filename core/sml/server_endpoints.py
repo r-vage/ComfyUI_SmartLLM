@@ -25,8 +25,10 @@ from comfy.cli_args import args  # type: ignore
 from server import PromptServer  # type: ignore
 
 from .config_templates import (
+    DEFAULT_CHIP_COLOR,
     get_config_snapshot,
     get_config_value,
+    normalize_chip_color,
     update_config_values,
 )
 from .credentials import get_auth_token_status
@@ -335,6 +337,12 @@ class SMLConfigEndpoints:
         @PromptServer.instance.routes.get("/smartlml/config/all")
         async def get_all_config(request):
             config = get_config_snapshot()
+            try:
+                chip_color = normalize_chip_color(
+                    config.get("chip_color", DEFAULT_CHIP_COLOR)
+                )
+            except (TypeError, ValueError):
+                chip_color = DEFAULT_CHIP_COLOR
             hf_token_configured, hf_token_source = get_auth_token_status()
             modelscope_token_configured, modelscope_token_source = (
                 get_auth_token_status("modelscope")
@@ -346,6 +354,7 @@ class SMLConfigEndpoints:
                     "retry_download_attempts": config.get(
                         "retry_download_attempts", 2
                     ),
+                    "chip_color": chip_color,
                     "hf_token_configured": hf_token_configured,
                     "hf_token_source": hf_token_source,
                     "modelscope_token_configured": modelscope_token_configured,
@@ -366,6 +375,7 @@ class SMLConfigEndpoints:
                     "retry_download_attempts",
                     "hf_token",
                     "modelscope_token",
+                    "chip_color",
                 ]
                 pending_updates = {}
                 response_updates = {}
@@ -392,6 +402,13 @@ class SMLConfigEndpoints:
                                     ),
                                 },
                                 status=400,
+                            )
+                    elif key == "chip_color":
+                        try:
+                            value = normalize_chip_color(value)
+                        except (TypeError, ValueError) as error:
+                            return web.json_response(
+                                {"success": False, "error": str(error)}, status=400
                             )
                     elif key in ["llm_models_path", "hf_token", "modelscope_token"]:
                         if not isinstance(value, str):

@@ -14,7 +14,7 @@ const SERVER_QUANTIZATIONS = {
 
 const CSS = `
 .smartllm-registry-backdrop{position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.68);box-sizing:border-box}
-.smartllm-registry-dialog{width:min(1120px,96vw);height:min(780px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border-color,#555);border-radius:10px;background:var(--comfy-menu-bg,#303030);color:var(--input-text,#ddd);box-shadow:0 18px 60px rgba(0,0,0,.55);font:13px sans-serif}
+.smartllm-registry-dialog{width:min(1120px,96vw);height:min(780px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border-color,#555);border-radius:10px;background:#3a3a3a;color:var(--input-text,#ddd);box-shadow:0 18px 60px rgba(0,0,0,.55);font:13px sans-serif}
 .smartllm-registry-header,.smartllm-registry-footer{display:flex;align-items:center;gap:8px;padding:10px 14px;border-color:var(--border-color,#555);flex:0 0 auto}
 .smartllm-registry-header{border-bottom:1px solid}.smartllm-registry-header h2{flex:1;margin:0;font-size:17px}.smartllm-registry-footer{border-top:1px solid;flex-wrap:wrap}
 .smartllm-registry-body{display:grid;grid-template-columns:minmax(260px,32%) 1fr;min-height:0;flex:1}

@@ -4,7 +4,7 @@ One adaptive interface for vision-language models, text models, WD14 taggers,
 Florence grounding, and YOLO detection—plus a registry manager that keeps model
 identity, acquisition, and trust decisions explicit.
 
-Version **1.0.1** provides three Nodes 2.0-ready nodes. ComfyUI Eclipse is
+Version **1.0.2** provides three Nodes 2.0-ready nodes. ComfyUI Eclipse is
 optional.
 
 ![Annotated Nodes 2.0 overview of Smart LM Loader and Smart Detection](Readme/assets/smartllm-overview.png)
