@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-28
+
+### Version: 1.0.3
+
+- **Feat**
+  - Add a Docker Images view to the Smart LM Manager with Docker Engine, daemon, group, and GPU readiness diagnostics; terminal-only Linux installer guidance; vendor-specific managed-image status; and guarded install, update, and removal controls that refuse images still used by containers.
+  - Report Docker image installation and removal milestones in the ComfyUI console, with filtered pull progress and command details available at SmartLLM's debug log level.
+
+- **Fix**
+  - Update the qualified Ollama NVIDIA/CPU and ROCm fallback images from 0.20.2 to 0.33.1 so Qwen 3.8 models use a compatible backend.
+  - Make the standalone Docker image manager pull Ollama's current release channel, detect the installed version and repository digest, and atomically record that immutable pin in SmartLLM's active Docker configuration.
+
+**Changed files:**
+- `.defaults/docker_config.json.example`
+- `core/sml/docker_image_manager.py` (new)
+- `core/sml/docker_image_policy.py`
+- `core/sml/server_endpoints.py`
+- `js/smartllm-registry-manager.js`
+- `README.md`
+- `scripts/manage-docker-images.sh`
+- `pyproject.toml`
+
 ## 2026-08-22
 
 ### Version: 1.0.2
@@ -25,10 +47,6 @@
 - `js/smartllm-settings.js`
 - `README.md`
 - `pyproject.toml`
-- `tests/test_sml_endpoint_security.py`
-- `tests/test_sml_model_files.py`
-- `tools/chip-color-harness.mjs` (new)
-- `tools/combo-chip-harness.mjs` (new)
 
 ## 2026-08-19
 

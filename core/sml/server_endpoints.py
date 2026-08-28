@@ -250,6 +250,29 @@ async def _registry_write_if_idle(
     return result, 200
 
 
+async def _remove_docker_image_if_idle(
+    backend: str,
+    vendor: str,
+) -> tuple[dict[str, Any], int]:
+    with model_maintenance_if_idle() as maintenance_acquired:
+        if not maintenance_acquired:
+            return (
+                {
+                    "success": False,
+                    "error": (
+                        "A Smart LM model is currently active; retry Docker image "
+                        "removal after the prompt finishes"
+                    ),
+                },
+                409,
+            )
+
+        from .docker_image_manager import remove_managed_image
+
+        result = await asyncio.to_thread(remove_managed_image, backend, vendor)
+    return result, 200
+
+
 def _registry_display_name(data: dict[str, Any]) -> str:
     value = data.get("display_name", "")
     if not isinstance(value, str):
@@ -839,6 +862,144 @@ class SMLRegistryEndpoints:
         log.debug(_LOG_PREFIX, "Registered model registry endpoints")
 
 
+class SMLDockerEndpoints:
+    # Docker installation overview and managed backend image operations.
+
+    def __init__(self):
+        self._register_endpoints()
+
+    def _register_endpoints(self):
+
+        @PromptServer.instance.routes.get("/smartlml/docker/images")
+        async def get_docker_images(request):
+            try:
+                vendor = request.query.get("vendor", "auto")
+                from .docker_image_manager import get_docker_manager_overview
+
+                result = await asyncio.to_thread(get_docker_manager_overview, vendor)
+                return web.json_response(result)
+            except ValueError as error:
+                return web.json_response(
+                    {"success": False, "error": str(error)}, status=400
+                )
+            except Exception as error:  # noqa: BLE001 -- endpoint boundary
+                log.error(_LOG_PREFIX, f"Docker overview failed: {error}")
+                return web.json_response(
+                    {"success": False, "error": "Docker overview failed"},
+                    status=500,
+                )
+
+        @PromptServer.instance.routes.post("/smartlml/docker/images/pull")
+        async def pull_docker_image(request):
+            denial = _global_mutation_denial(request)
+            if denial is not None:
+                return denial
+            try:
+                data = await _read_json_object(request)
+                backend = data.get("backend")
+                vendor = data.get("vendor", "auto")
+                from .docker_image_manager import (
+                    DockerImageManagerBusy,
+                    DockerImageManagerError,
+                    normalize_managed_image_selection,
+                    pull_managed_image,
+                )
+
+                backend, vendor = await asyncio.to_thread(
+                    normalize_managed_image_selection,
+                    backend,
+                    vendor,
+                )
+
+                try:
+                    result = await asyncio.to_thread(
+                        pull_managed_image,
+                        backend,
+                        vendor,
+                    )
+                except DockerImageManagerBusy as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=409
+                    )
+                except DockerImageManagerError as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=503
+                    )
+                return web.json_response(result)
+            except web.HTTPException:
+                raise
+            except (TypeError, ValueError) as error:
+                return web.json_response(
+                    {"success": False, "error": str(error)}, status=400
+                )
+            except Exception as error:  # noqa: BLE001 -- endpoint boundary
+                log.error(_LOG_PREFIX, f"Docker image pull failed: {error}")
+                return web.json_response(
+                    {"success": False, "error": "Docker image pull failed"},
+                    status=500,
+                )
+
+        @PromptServer.instance.routes.post("/smartlml/docker/images/remove")
+        async def remove_docker_image(request):
+            denial = _global_mutation_denial(request)
+            if denial is not None:
+                return denial
+            try:
+                data = await _read_json_object(request)
+                backend = data.get("backend")
+                vendor = data.get("vendor", "auto")
+                from .docker_image_manager import (
+                    DockerImageInUse,
+                    DockerImageManagerBusy,
+                    DockerImageManagerError,
+                    normalize_managed_image_selection,
+                )
+
+                backend, vendor = await asyncio.to_thread(
+                    normalize_managed_image_selection,
+                    backend,
+                    vendor,
+                )
+
+                try:
+                    result, status = await _remove_docker_image_if_idle(
+                        backend,
+                        vendor,
+                    )
+                except DockerImageInUse as error:
+                    return web.json_response(
+                        {
+                            "success": False,
+                            "error": str(error),
+                            "containers": error.containers,
+                        },
+                        status=409,
+                    )
+                except DockerImageManagerBusy as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=409
+                    )
+                except DockerImageManagerError as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=503
+                    )
+                return web.json_response(result, status=status)
+            except web.HTTPException:
+                raise
+            except (TypeError, ValueError) as error:
+                return web.json_response(
+                    {"success": False, "error": str(error)}, status=400
+                )
+            except Exception as error:  # noqa: BLE001 -- endpoint boundary
+                log.error(_LOG_PREFIX, f"Docker image removal failed: {error}")
+                return web.json_response(
+                    {"success": False, "error": "Docker image removal failed"},
+                    status=500,
+                )
+
+        log.debug(_LOG_PREFIX, "Registered Docker manager endpoints")
+
+
 class SMLTaskEndpoints:
     # Task list endpoint for the new Smart Model Loader.
 
@@ -885,6 +1046,7 @@ def initialize_endpoints():
     try:
         SMLConfigEndpoints()
         SMLRegistryEndpoints()
+        SMLDockerEndpoints()
         SMLTaskEndpoints()
         SMLDetectionEndpoints()
 

@@ -23,6 +23,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SMARTLLM_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+SMARTLLM_DOCKER_CONFIG_PATH="${SMARTLLM_DOCKER_CONFIG_PATH:-${SMARTLLM_ROOT}/docker_config.json}"
+
 # ─── Color helpers ───────────────────────────────────────────────────────
 
 RED='\033[0;31m'
@@ -47,7 +51,7 @@ header()  { echo -e "\n${BOLD}${CYAN}═══ $* ═══${NC}\n"; }
 IMAGES_NVIDIA=(
   "vLLM|vllm/vllm-openai:v0.15.1@sha256:8c9aaddfa6011b9651d06834d2fb90bdb9ab6ced4b420ec76925024eb12b22d0|High-performance OpenAI-compatible inference server|8000|--gpus all --shm-size 16g"
   "SGLang|lmsysorg/sglang:v0.5.9@sha256:e216b7dc4ac1938b599b982233ccf7eb2b11dd1f07fc2e00a7b9841052c553be|Fast inference with RadixAttention (alternative to vLLM)|30000|--gpus all --shm-size 16g"
-  "Ollama|ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd|Easy model management, supports GGUF and Mistral3|11434|--gpus all"
+  "Ollama|ollama/ollama:latest|Pulls the current Ollama release and records its immutable installed pin|11434|--gpus all"
   "llama.cpp|ghcr.io/ggml-org/llama.cpp:server-cuda-b8067@sha256:e2c4612f86f6c24408f87f2743fe33063d343c7e9f523ce24a9a60ee401fde05|Lightweight GGUF inference with CUDA support|8080|--gpus all"
 )
 
@@ -56,13 +60,13 @@ IMAGES_NVIDIA=(
 IMAGES_ROCM=(
   "vLLM (ROCm)|vllm/vllm-openai-rocm:v0.15.1@sha256:4c7fbd92fe07e4dab956d283b5d61b971f6242516647df6af06fdcbc34fddc2c|AMD-optimized vLLM image|8000|--device=/dev/kfd --device=/dev/dri --group-add video --shm-size 16g"
   "SGLang (ROCm)|lmsysorg/sglang:v0.5.9-rocm720-mi30x@sha256:a7147071bf3cdd7e2fa8565f376a6bf01b89589aaca3767e8ed3927106e70e0b|SGLang for ROCm 7.2 + MI300X (see extras for other GPUs)|30000|--device=/dev/kfd --device=/dev/dri --group-add video --shm-size 16g"
-  "Ollama (ROCm)|ollama/ollama:0.20.2-rocm@sha256:d90fa63ebb73e34203ce169f55ec78ef3a47538a03cefb951df14bcdedb8c85f|Official Ollama image with AMD ROCm support|11434|--device=/dev/kfd --device=/dev/dri --group-add video"
+  "Ollama (ROCm)|ollama/ollama:rocm|Pulls the current Ollama ROCm release and records its immutable installed pin|11434|--device=/dev/kfd --device=/dev/dri --group-add video"
   "llama.cpp|ghcr.io/ggml-org/llama.cpp:server-b8067@sha256:76a06f8e186e8aaab15f1c0447b1d3eb8f10647ee468b901fe016fe03229aa1b|llama.cpp CPU fallback (no qualified ROCm image)|8080|none"
 )
 
 # CPU-only images (no GPU required)
 IMAGES_CPU=(
-  "Ollama (CPU)|ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd|Ollama without GPU acceleration|11434|none"
+  "Ollama (CPU)|ollama/ollama:latest|Pulls the current Ollama release and records its immutable installed pin|11434|none"
   "llama.cpp (CPU)|ghcr.io/ggml-org/llama.cpp:server-b8067@sha256:76a06f8e186e8aaab15f1c0447b1d3eb8f10647ee468b901fe016fe03229aa1b|llama.cpp CPU inference|8080|none"
 )
 
@@ -246,6 +250,15 @@ image_id() {
   docker image inspect "$img" --format='{{.ID}}' 2>/dev/null | cut -d: -f2 | head -c 12
 }
 
+# Return the immutable repository digest recorded for a locally installed image.
+image_repo_digest() {
+  local img="$1"
+  docker image inspect "$img" --format='{{range .RepoDigests}}{{println .}}{{end}}' 2>/dev/null \
+    | grep -E '(^|/)ollama/ollama@sha256:[0-9a-f]{64}$' \
+    | head -n 1 \
+    || true
+}
+
 # Get software version from inside image (backend-specific)
 # Uses a short-lived container with timeout to avoid blocking
 image_version() {
@@ -276,6 +289,80 @@ image_version() {
   fi
 }
 
+# Record the exact installed Ollama release and digest in SmartLLM's active config.
+sync_ollama_config_from_image() {
+  local img="$1"
+  local name="${2:-Ollama}"
+  local config_key="docker_image"
+  local version repo_digest digest suffix="" pinned python_bin
+
+  case "$img" in
+    ollama/ollama:*|docker.io/ollama/ollama:*) ;;
+    *) return 0 ;;
+  esac
+
+  if [[ "${name,,}" == *rocm* || "$img" == *:rocm || "$img" == *-rocm@* ]]; then
+    config_key="docker_image_rocm"
+    suffix="-rocm"
+  fi
+
+  version=$(image_version "$img" "Ollama")
+  if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    error "Could not determine the installed Ollama version for ${img}"
+    return 1
+  fi
+
+  repo_digest=$(image_repo_digest "$img")
+  digest="${repo_digest##*@}"
+  if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    error "Could not determine the immutable repository digest for ${img}"
+    return 1
+  fi
+
+  pinned="ollama/ollama:${version}${suffix}@${digest}"
+  if [[ -n "${SMARTLLM_PYTHON:-}" ]]; then
+    python_bin="$SMARTLLM_PYTHON"
+  elif [[ -x /mnt/data/AI/comfy_env/bin/python ]]; then
+    python_bin="/mnt/data/AI/comfy_env/bin/python"
+  elif command -v python3 &>/dev/null; then
+    python_bin="$(command -v python3)"
+  else
+    error "Python 3 is required to update ${SMARTLLM_DOCKER_CONFIG_PATH} atomically"
+    return 1
+  fi
+
+  if ! "$python_bin" - "$SMARTLLM_ROOT" "$SMARTLLM_DOCKER_CONFIG_PATH" "$config_key" "$pinned" <<'PY'
+import sys
+from pathlib import Path
+
+repo_root = Path(sys.argv[1])
+config_path = Path(sys.argv[2])
+config_key = sys.argv[3]
+pinned_reference = sys.argv[4]
+sys.path.insert(0, str(repo_root))
+
+from core.json_store import JsonStoreError, update_json_object
+
+
+def update_ollama(config):
+    ollama = config.get("ollama")
+    if not isinstance(ollama, dict):
+        raise JsonStoreError("docker_config.json must contain an Ollama object")
+    ollama[config_key] = pinned_reference
+
+
+if not config_path.is_file():
+    raise JsonStoreError(f"SmartLLM Docker config not found: {config_path}")
+update_json_object(config_path, update_ollama)
+PY
+  then
+    error "Failed to update SmartLLM's active Ollama image pin"
+    return 1
+  fi
+
+  success "SmartLLM config now uses installed image: ${pinned}"
+}
+
 # ─── Core Actions ────────────────────────────────────────────────────────
 
 # Pull a single image
@@ -296,6 +383,8 @@ pull_image() {
 
   if docker pull "$img"; then
     success "Successfully pulled ${name}"
+
+    sync_ollama_config_from_image "$img" "$name" || return 1
 
     # Check if image was actually updated
     local new_id new_ver
@@ -786,4 +875,6 @@ main() {
   esac
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

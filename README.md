@@ -148,8 +148,8 @@ threshold and minimum-area controls instead of consuming JSON data.
 
 ### Inspect and acquire models
 
-Open **SmartLLM → Edit Smart LM Registry (Beta)**, use the **LM Registry**
-left-toolbar launcher, or use the classic-menu button. Registry Manager separates
+Open **SmartLLM → Open Smart LM Manager (Beta)**, use the **Smart LM Manager**
+left-toolbar launcher, or use the classic-menu button. The **Models** tab separates
 model identity and trust policy from each action you may take.
 
 ![Annotated Smart LM Registry Manager showing search, identity, trust, and acquisition actions](Readme/assets/registry-manager.png)
@@ -162,6 +162,16 @@ Use **Inspect** before **Save Entry** or **Download**. **Verify Local Files** do
 not download anything. **Delete Local Files** and **Remove Registry Entry** are
 separate confirmed operations: removing an entry does not delete its local model
 files.
+
+The **Docker Images** tab reports Docker Engine, daemon-access, user-group, and GPU
+runtime readiness, then lists the qualified backend images for the selected
+platform. Linux users can copy the included terminal installer command or open the
+installation guide; SmartLLM never requests sudo credentials in the browser.
+Managed images can be installed, updated, or removed from this tab. Removal is
+refused while any container still references the selected image. Image operations
+report start, completion, and failure milestones in the ComfyUI console; select
+**debug** under SmartLLM's **Log Level** setting to also see filtered Docker pull
+progress and command output.
 
 ## Included nodes
 

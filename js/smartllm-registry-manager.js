@@ -17,7 +17,10 @@ const CSS = `
 .smartllm-registry-dialog{width:min(1120px,96vw);height:min(780px,92vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border-color,#555);border-radius:10px;background:#3a3a3a;color:var(--input-text,#ddd);box-shadow:0 18px 60px rgba(0,0,0,.55);font:13px sans-serif}
 .smartllm-registry-header,.smartllm-registry-footer{display:flex;align-items:center;gap:8px;padding:10px 14px;border-color:var(--border-color,#555);flex:0 0 auto}
 .smartllm-registry-header{border-bottom:1px solid}.smartllm-registry-header h2{flex:1;margin:0;font-size:17px}.smartllm-registry-footer{border-top:1px solid;flex-wrap:wrap}
+.smartllm-manager-tabs{display:flex;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border-color,#555);background:rgba(0,0,0,.12)}
+.smartllm-manager-tab[aria-selected=true]{border-color:#78a9d6;background:var(--comfy-input-bg,#202020);color:#dceeff}
 .smartllm-registry-body{display:grid;grid-template-columns:minmax(260px,32%) 1fr;min-height:0;flex:1}
+.smartllm-registry-body[hidden],.smartllm-docker-body[hidden]{display:none!important}
 .smartllm-registry-sidebar{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--border-color,#555);padding:10px;gap:8px}
 .smartllm-registry-list{overflow:auto;min-height:0;flex:1;border:1px solid var(--border-color,#555);border-radius:6px}
 .smartllm-registry-item{display:block;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--border-color,#444);background:transparent;color:inherit;text-align:left;cursor:pointer}
@@ -30,8 +33,15 @@ const CSS = `
 .smartllm-registry-field textarea{min-height:70px;resize:vertical}.smartllm-registry-field--check input{width:auto}.smartllm-registry-field--check label{text-transform:none;font-size:13px;color:inherit}
 .smartllm-registry-button{padding:7px 10px;border:1px solid var(--border-color,#666);border-radius:5px;background:var(--comfy-input-bg,#222);color:inherit;cursor:pointer}.smartllm-registry-button:hover{filter:brightness(1.18)}.smartllm-registry-button:disabled{opacity:.45;cursor:default}
 .smartllm-registry-danger{border-color:#a44;color:#f1b8b8}.smartllm-registry-status{flex:1;min-width:220px;color:var(--descrip-text,#aaa)}.smartllm-registry-status[data-kind=error]{color:#ffaaaa}.smartllm-registry-status[data-kind=success]{color:#aee6ae}
+.smartllm-docker-body{min-height:0;flex:1;overflow:auto;padding:14px;box-sizing:border-box}.smartllm-docker-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}.smartllm-docker-toolbar label{color:var(--descrip-text,#aaa)}
+.smartllm-docker-toolbar select{padding:7px 8px;border:1px solid var(--border-color,#555);border-radius:5px;background:var(--comfy-input-bg,#222);color:inherit}
+.smartllm-docker-card{padding:12px;margin-bottom:12px;border:1px solid var(--border-color,#555);border-radius:7px;background:rgba(0,0,0,.12)}.smartllm-docker-card h3{margin:0 0 7px;font-size:15px}.smartllm-docker-card p{margin:5px 0;line-height:1.4}
+.smartllm-docker-detail{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:4px 12px;margin:9px 0}.smartllm-docker-detail dt{color:var(--descrip-text,#aaa)}.smartllm-docker-detail dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.smartllm-docker-command{display:flex;align-items:center;gap:8px;margin-top:9px}.smartllm-docker-command code{flex:1;min-width:0;padding:8px;border-radius:5px;background:var(--comfy-input-bg,#202020);overflow:auto;white-space:pre}
+.smartllm-docker-guide{display:inline-block;margin-top:8px;color:#9ecbff}.smartllm-docker-note{color:var(--descrip-text,#aaa)}
+.smartllm-docker-images{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px}.smartllm-docker-image{display:flex;flex-direction:column;gap:7px;padding:11px;border:1px solid var(--border-color,#555);border-radius:7px;background:rgba(0,0,0,.1)}.smartllm-docker-image h3{margin:0}.smartllm-docker-image code{overflow-wrap:anywhere;color:var(--descrip-text,#bbb)}.smartllm-docker-image-actions{display:flex;gap:7px;margin-top:auto;padding-top:4px}
 .smartllm-registry-classic{width:100%;margin:6px 0;padding:7px;border:1px solid var(--border-color,#555);border-radius:7px;background:var(--comfy-input-bg,#222);color:var(--input-text,#ddd);cursor:pointer}
-@media(max-width:760px){.smartllm-registry-body{grid-template-columns:1fr}.smartllm-registry-sidebar{max-height:230px;border-right:0;border-bottom:1px solid var(--border-color,#555)}.smartllm-registry-form{grid-template-columns:1fr}.smartllm-registry-field--wide{grid-column:auto}}
+@media(max-width:760px){.smartllm-registry-body{grid-template-columns:1fr}.smartllm-registry-sidebar{max-height:230px;border-right:0;border-bottom:1px solid var(--border-color,#555)}.smartllm-registry-form{grid-template-columns:1fr}.smartllm-registry-field--wide{grid-column:auto}.smartllm-docker-images{grid-template-columns:1fr}.smartllm-docker-command{align-items:stretch;flex-direction:column}}
 `;
 
 function injectCSS() {
@@ -104,6 +114,9 @@ class RegistryManager {
         this.originalFocus = null;
         this.busy = false;
         this.inputs = {};
+        this.activeView = 'models';
+        this.dockerLoaded = false;
+        this.dockerState = null;
     }
 
     open() {
@@ -112,8 +125,8 @@ class RegistryManager {
         this.originalFocus = document.activeElement;
         this.build();
         document.body.appendChild(this.backdrop);
-        this.filter.focus();
-        this.refresh();
+        if (this.activeView === 'models') this.filter.focus();
+        this.refreshActive();
     }
 
     close() {
@@ -138,14 +151,25 @@ class RegistryManager {
         });
 
         const header = element('header', 'smartllm-registry-header');
-        const title = element('h2', '', 'Smart LM Registry Editor (Beta)');
+        const title = element('h2', '', 'Smart LM Manager (Beta)');
         title.id = 'smartllm-registry-title';
-        const refresh = this.button('Refresh', () => this.refresh(), 'smartllm-registry-refresh');
-        const add = this.button('New Model', () => this.newEntry(), 'smartllm-registry-new');
+        this.refreshButton = this.button('Refresh', () => this.refreshActive(), 'smartllm-registry-refresh');
+        this.addButton = this.button('New Model', () => this.newEntry(), 'smartllm-registry-new');
         const close = this.button('Close', () => this.close(), 'smartllm-registry-close');
-        header.append(title, refresh, add, close);
+        header.append(title, this.refreshButton, this.addButton, close);
+
+        const tabs = element('div', 'smartllm-manager-tabs');
+        tabs.setAttribute('role', 'tablist');
+        this.modelsTab = this.button('Models', () => this.switchView('models'), 'smartllm-manager-tab-models');
+        this.modelsTab.classList.add('smartllm-manager-tab');
+        this.modelsTab.setAttribute('role', 'tab');
+        this.dockerTab = this.button('Docker Images', () => this.switchView('docker'), 'smartllm-manager-tab-docker');
+        this.dockerTab.classList.add('smartllm-manager-tab');
+        this.dockerTab.setAttribute('role', 'tab');
+        tabs.append(this.modelsTab, this.dockerTab);
 
         const body = element('div', 'smartllm-registry-body');
+        this.registryBody = body;
         const sidebar = element('aside', 'smartllm-registry-sidebar');
         this.filter = document.createElement('input');
         this.filter.type = 'search';
@@ -182,6 +206,25 @@ class RegistryManager {
         this.inputs.quantizations.addEventListener('input', () => this.syncDownloadQuantizations());
         body.append(sidebar, this.form);
 
+        this.dockerBody = element('section', 'smartllm-docker-body');
+        this.dockerBody.dataset.testid = 'smartllm-docker-manager';
+        const dockerToolbar = element('div', 'smartllm-docker-toolbar');
+        const vendorLabel = element('label', '', 'Image platform');
+        this.dockerVendor = document.createElement('select');
+        this.dockerVendor.dataset.testid = 'smartllm-docker-vendor';
+        for (const [value, label] of [['auto', 'Auto-detect'], ['nvidia', 'NVIDIA / CUDA'], ['amd', 'AMD / ROCm'], ['cpu', 'CPU only']]) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            this.dockerVendor.appendChild(option);
+        }
+        vendorLabel.htmlFor = 'smartllm-docker-vendor';
+        this.dockerVendor.id = 'smartllm-docker-vendor';
+        this.dockerVendor.addEventListener('change', () => this.refreshDocker());
+        dockerToolbar.append(vendorLabel, this.dockerVendor);
+        this.dockerContent = element('div', 'smartllm-docker-content');
+        this.dockerBody.append(dockerToolbar, this.dockerContent);
+
         const footer = element('footer', 'smartllm-registry-footer');
         this.status = element('div', 'smartllm-registry-status', 'Select a model or create a new entry.');
         this.inspectButton = this.button('Inspect', () => this.inspect(), 'smartllm-registry-inspect');
@@ -191,9 +234,11 @@ class RegistryManager {
         this.deleteButton = this.button('Delete Local Files', () => this.deleteLocal(), 'smartllm-registry-delete-local', true);
         this.removeButton = this.button('Remove Registry Entry', () => this.removeEntry(), 'smartllm-registry-remove-entry', true);
         footer.append(this.status, this.inspectButton, this.saveButton, this.downloadButton, this.verifyButton, this.deleteButton, this.removeButton);
-        dialog.append(header, body, footer);
+        this.registryActionButtons = [this.inspectButton, this.saveButton, this.downloadButton, this.verifyButton, this.deleteButton, this.removeButton];
+        dialog.append(header, tabs, body, this.dockerBody, footer);
         this.backdrop = backdrop;
         this.setForm({});
+        this.updateView();
     }
 
     button(label, handler, testid, danger = false) {
@@ -204,6 +249,136 @@ class RegistryManager {
         return button;
     }
 
+    switchView(view) {
+        if (!['models', 'docker'].includes(view) || this.busy) return;
+        this.activeView = view;
+        this.updateView();
+        if (view === 'docker' && !this.dockerLoaded) this.refreshDocker();
+        else if (view === 'models') this.filter.focus();
+    }
+
+    updateView() {
+        const showModels = this.activeView === 'models';
+        this.registryBody.hidden = !showModels;
+        this.dockerBody.hidden = showModels;
+        this.addButton.hidden = !showModels;
+        this.modelsTab.setAttribute('aria-selected', String(showModels));
+        this.dockerTab.setAttribute('aria-selected', String(!showModels));
+        for (const button of this.registryActionButtons) button.hidden = !showModels;
+    }
+
+    refreshActive() {
+        return this.activeView === 'docker' ? this.refreshDocker() : this.refresh();
+    }
+
+    async copyText(value, label = 'Command') {
+        try {
+            await navigator.clipboard.writeText(value);
+            this.setStatus(`${label} copied to the clipboard.`, 'success');
+        } catch (_) {
+            this.setStatus(`Could not copy automatically. Select and copy the ${label.toLowerCase()} manually.`, 'error');
+        }
+    }
+
+    dockerDetail(list, label, value) {
+        list.append(element('dt', '', label), element('dd', '', value || '—'));
+    }
+
+    renderDocker() {
+        this.dockerContent.replaceChildren();
+        if (!this.dockerState) {
+            this.dockerContent.appendChild(element('p', 'smartllm-docker-note', 'Loading Docker status…'));
+            return;
+        }
+
+        const installation = this.dockerState.installation || {};
+        const docker = installation.docker || {};
+        const setup = installation.setup || {};
+        const gpu = installation.gpu || {};
+        const platform = installation.platform || {};
+        const setupCard = element('section', 'smartllm-docker-card');
+        setupCard.dataset.testid = 'smartllm-docker-setup';
+        setupCard.appendChild(element('h3', '', docker.daemon_accessible ? 'Docker Engine · Ready' : 'Docker Engine · Setup Required'));
+        setupCard.appendChild(element('p', '', setup.message || 'Docker setup status is unavailable.'));
+        const details = element('dl', 'smartllm-docker-detail');
+        this.dockerDetail(details, 'Platform', [platform.system, platform.release, platform.machine].filter(Boolean).join(' '));
+        this.dockerDetail(details, 'Docker CLI', docker.installed ? (docker.version || 'Installed') : 'Not installed');
+        this.dockerDetail(details, 'Docker daemon', docker.daemon_accessible ? `Accessible${docker.daemon_version ? ` · ${docker.daemon_version}` : ''}` : 'Not accessible');
+        this.dockerDetail(details, 'Selected images', this.dockerState.selected_vendor || 'auto');
+        this.dockerDetail(details, 'Detected GPU', gpu.vendor || 'unknown');
+        if (gpu.vendor === 'nvidia') {
+            this.dockerDetail(details, 'NVIDIA toolkit', gpu.nvidia_container_toolkit ? 'Installed' : 'Not detected');
+            this.dockerDetail(details, 'NVIDIA driver', gpu.driver_accessible ? (gpu.devices || []).join('; ') || 'Accessible' : 'Not accessible');
+        } else if (gpu.vendor === 'amd') {
+            this.dockerDetail(details, 'ROCm devices', gpu.kfd_available && gpu.dri_available ? 'Available' : 'Incomplete');
+        }
+        setupCard.appendChild(details);
+
+        if (setup.installer_command) {
+            const command = element('div', 'smartllm-docker-command');
+            command.appendChild(element('code', '', setup.installer_command));
+            command.appendChild(this.button(setup.command_label || 'Copy command', () => this.copyText(setup.installer_command, 'Command'), 'smartllm-docker-copy-command'));
+            setupCard.appendChild(command);
+        }
+        if (setup.restart_required) {
+            setupCard.appendChild(element('p', 'smartllm-docker-note', 'After changing group membership, log out or reboot and then restart ComfyUI.'));
+        }
+        if (setup.guide_url) {
+            const guide = element('a', 'smartllm-docker-guide', 'Open Linux Docker installation guide');
+            guide.href = setup.guide_url;
+            guide.target = '_blank';
+            guide.rel = 'noopener noreferrer';
+            setupCard.appendChild(guide);
+        }
+        setupCard.appendChild(element('p', 'smartllm-docker-note', 'Installation remains terminal-only. SmartLLM never requests or stores sudo credentials.'));
+        this.dockerContent.appendChild(setupCard);
+
+        this.dockerContent.appendChild(element('h3', '', `Managed images · ${this.dockerState.selected_vendor || 'auto'}`));
+        const imageGrid = element('div', 'smartllm-docker-images');
+        for (const image of this.dockerState.images || []) {
+            const card = element('article', 'smartllm-docker-image');
+            card.dataset.backend = image.backend;
+            card.appendChild(element('h3', '', `${image.label} · ${image.installed ? 'Installed' : 'Missing'}`));
+            card.appendChild(element('p', 'smartllm-docker-note', image.description));
+            card.appendChild(element('code', '', image.image));
+            const metadata = [image.size, image.short_id ? `ID ${image.short_id}` : '', image.created ? image.created.slice(0, 10) : ''].filter(Boolean).join(' · ');
+            if (metadata) card.appendChild(element('small', 'smartllm-docker-note', metadata));
+            const actions = element('div', 'smartllm-docker-image-actions');
+            const install = this.button(image.installed ? 'Update / Repair' : 'Install', () => this.dockerImageAction('pull', image), `smartllm-docker-pull-${image.backend}`);
+            install.disabled = !docker.daemon_accessible || this.busy;
+            actions.appendChild(install);
+            if (image.installed) {
+                const remove = this.button('Remove', () => this.dockerImageAction('remove', image), `smartllm-docker-remove-${image.backend}`, true);
+                remove.disabled = !docker.daemon_accessible || this.busy;
+                actions.appendChild(remove);
+            }
+            card.appendChild(actions);
+            imageGrid.appendChild(card);
+        }
+        if (!imageGrid.childElementCount) imageGrid.appendChild(element('p', '', 'No managed images are available for this platform.'));
+        this.dockerContent.appendChild(imageGrid);
+    }
+
+    async refreshDocker() {
+        const vendor = this.dockerVendor.value || 'auto';
+        const result = await this.action('Refreshing Docker overview', () => request(`/smartlml/docker/images?vendor=${encodeURIComponent(vendor)}`));
+        if (!result) return;
+        this.dockerState = result;
+        this.dockerLoaded = true;
+        this.renderDocker();
+        this.setStatus('Docker overview refreshed.', 'success');
+    }
+
+    async dockerImageAction(action, image) {
+        if (action === 'remove' && !window.confirm(`Remove the managed Docker image for ${image.label}?\n\nSmartLLM will refuse if any container still uses it.`)) return;
+        const verb = action === 'pull' ? 'Installing' : 'Removing';
+        const result = await this.action(`${verb} ${image.label} image`, () => request(`/smartlml/docker/images/${action}`, {
+            backend: image.backend,
+            vendor: this.dockerVendor.value || 'auto',
+        }));
+        if (result) await this.refreshDocker();
+    }
+
     setStatus(message, kind = '') {
         this.status.textContent = message;
         this.status.dataset.kind = kind;
@@ -212,7 +387,11 @@ class RegistryManager {
     setBusy(value) {
         this.busy = value;
         for (const button of this.backdrop.querySelectorAll('button')) button.disabled = value;
-        if (!value) this.updateVisibility();
+        if (!value) {
+            this.updateVisibility();
+            this.updateView();
+            if (this.activeView === 'docker') this.renderDocker();
+        }
     }
 
     async action(label, callback) {
@@ -452,7 +631,7 @@ function injectClassicButton() {
     if (existing?.isConnected) return;
     const host = app.ui?.menuContainer;
     if (!host) return;
-    const button = element('button', 'smartllm-registry-classic', 'Edit Smart LM Registry (Beta)');
+    const button = element('button', 'smartllm-registry-classic', 'Open Smart LM Manager (Beta)');
     button.type = 'button';
     button.dataset.smartllmRegistryClassic = 'true';
     button.addEventListener('click', () => manager.open());
@@ -466,8 +645,8 @@ function registerSidebarLauncher() {
     extensionManager.registerSidebarTab({
         id: SIDEBAR_TAB_ID,
         icon: 'pi pi-database',
-        title: 'LM Registry (Beta)',
-        tooltip: 'Edit the Smart LM model registry (Beta)',
+        title: 'Smart LM Manager (Beta)',
+        tooltip: 'Manage Smart LM models and Docker images (Beta)',
         type: 'custom',
         render: (host) => {
             host.replaceChildren();
@@ -492,9 +671,9 @@ app.registerExtension({
     name: 'SmartLLM.RegistryManager',
     commands: [{
         id: COMMAND_ID,
-        label: 'Edit Smart LM Registry (Beta)',
+        label: 'Open Smart LM Manager (Beta)',
         icon: 'pi pi-database',
-        tooltip: 'Add, edit, download, verify, or remove Smart LM registry models (Beta)',
+        tooltip: 'Manage Smart LM registry models, Docker setup, and backend images (Beta)',
         function: () => manager.open(),
     }],
     menuCommands: [{ path: ['SmartLLM'], commands: [COMMAND_ID] }],
