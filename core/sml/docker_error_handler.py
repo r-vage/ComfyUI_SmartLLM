@@ -80,7 +80,7 @@ ERROR_PATTERNS: List[Tuple[str, DockerErrorType, str, str, bool]] = [
     # Model not found
     (
         r"(model.*not found|FileNotFoundError|No such file|"
-        r"Failed to load model|cannot find model|"
+        r"cannot find model|"
         r"model path.*does not exist)",
         DockerErrorType.MODEL_NOT_FOUND,
         "Model file not found",
@@ -90,12 +90,14 @@ ERROR_PATTERNS: List[Tuple[str, DockerErrorType, str, str, bool]] = [
     # Model corrupt/invalid
     (
         r"(Invalid model|corrupt|failed to read|"
+        r"failed to load model|error loading model|"
+        r"check_tensor_dims|tensor.*wrong shape|"
         r"bad header|invalid header|"
         r"tensor.*error|weight.*error|"
         r"safetensors.*error)",
         DockerErrorType.MODEL_CORRUPT,
-        "Model file appears corrupt or invalid",
-        "Try: 1) Re-download the model, 2) Check file integrity, 3) Ensure download completed",
+        "Model artifact is invalid or incompatible",
+        "Use a corrected model build or another tag. If the artifact should be compatible, re-download it and verify its integrity.",
         False,
     ),
     # Unsupported model architecture

@@ -273,6 +273,29 @@ async def _remove_docker_image_if_idle(
     return result, 200
 
 
+async def _stop_docker_containers_if_idle(
+    backend: str,
+    vendor: str,
+) -> tuple[dict[str, Any], int]:
+    with model_maintenance_if_idle() as maintenance_acquired:
+        if not maintenance_acquired:
+            return (
+                {
+                    "success": False,
+                    "error": (
+                        "A Smart LM model is currently active; retry stopping Docker "
+                        "containers after the prompt finishes"
+                    ),
+                },
+                409,
+            )
+
+        from .docker_image_manager import stop_managed_containers
+
+        result = await asyncio.to_thread(stop_managed_containers, backend, vendor)
+    return result, 200
+
+
 def _registry_display_name(data: dict[str, Any]) -> str:
     value = data.get("display_name", "")
     if not isinstance(value, str):
@@ -898,6 +921,7 @@ class SMLDockerEndpoints:
                 data = await _read_json_object(request)
                 backend = data.get("backend")
                 vendor = data.get("vendor", "auto")
+                runtime_version = data.get("runtime_version")
                 from .docker_image_manager import (
                     DockerImageManagerBusy,
                     DockerImageManagerError,
@@ -916,6 +940,7 @@ class SMLDockerEndpoints:
                         pull_managed_image,
                         backend,
                         vendor,
+                        runtime_version,
                     )
                 except DockerImageManagerBusy as error:
                     return web.json_response(
@@ -994,6 +1019,54 @@ class SMLDockerEndpoints:
                 log.error(_LOG_PREFIX, f"Docker image removal failed: {error}")
                 return web.json_response(
                     {"success": False, "error": "Docker image removal failed"},
+                    status=500,
+                )
+
+        @PromptServer.instance.routes.post("/smartlml/docker/images/stop")
+        async def stop_docker_containers(request):
+            denial = _global_mutation_denial(request)
+            if denial is not None:
+                return denial
+            try:
+                data = await _read_json_object(request)
+                backend = data.get("backend")
+                vendor = data.get("vendor", "auto")
+                from .docker_image_manager import (
+                    DockerImageManagerBusy,
+                    DockerImageManagerError,
+                    normalize_managed_image_selection,
+                )
+
+                backend, vendor = await asyncio.to_thread(
+                    normalize_managed_image_selection,
+                    backend,
+                    vendor,
+                )
+
+                try:
+                    result, status = await _stop_docker_containers_if_idle(
+                        backend,
+                        vendor,
+                    )
+                except DockerImageManagerBusy as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=409
+                    )
+                except DockerImageManagerError as error:
+                    return web.json_response(
+                        {"success": False, "error": str(error)}, status=503
+                    )
+                return web.json_response(result, status=status)
+            except web.HTTPException:
+                raise
+            except (TypeError, ValueError) as error:
+                return web.json_response(
+                    {"success": False, "error": str(error)}, status=400
+                )
+            except Exception as error:  # noqa: BLE001 -- endpoint boundary
+                log.error(_LOG_PREFIX, f"Docker container stop failed: {error}")
+                return web.json_response(
+                    {"success": False, "error": "Docker container stop failed"},
                     status=500,
                 )
 

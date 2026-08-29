@@ -56,7 +56,7 @@ docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
 
 # 6. Pull your preferred backend image
 docker pull 'vllm/vllm-openai:v0.15.1@sha256:8c9aaddfa6011b9651d06834d2fb90bdb9ab6ced4b420ec76925024eb12b22d0'
-docker pull 'ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd'
+docker pull 'ollama/ollama:0.33.1@sha256:075246f72d4109385b4a01c3ac8e9cbd26a0bcb21cd7aa30edbccd24e1b3180c'
 ```
 
 > **Note:** For RPM-based distros (Fedora/RHEL/CentOS), replace the `apt-get` NVIDIA toolkit commands with the `dnf` variant shown in [Section 5](#5-nvidia-gpu-support).
@@ -318,7 +318,7 @@ Or pull manually:
 |---------|-------|-------------|
 | **vLLM** | `vllm/vllm-openai:v0.15.1@sha256:8c9aaddf…` | Use `./manage-docker-images.sh` |
 | **SGLang** | `lmsysorg/sglang:v0.5.9@sha256:e216b7dc…` | Use `./manage-docker-images.sh` |
-| **Ollama** | `ollama/ollama:0.20.2@sha256:0455f166…` | Use `./manage-docker-images.sh` |
+| **Ollama** | `ollama/ollama:0.33.1@sha256:075246f7…` | Use Smart LM Manager or `./manage-docker-images.sh` |
 | **llama.cpp** | `ghcr.io/ggml-org/llama.cpp:server-cuda-b8067@sha256:e2c4612f…` | Use `./manage-docker-images.sh` |
 
 ### Image sizes
@@ -356,7 +356,7 @@ SmartLLM's Docker settings live in `ComfyUI_SmartLLM/docker_config.json`. Key se
   },
 
   "ollama": {
-    "docker_image": "ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd",
+    "docker_image": "ollama/ollama:0.33.1@sha256:075246f72d4109385b4a01c3ac8e9cbd26a0bcb21cd7aa30edbccd24e1b3180c",
     "url": "http://localhost:11434/v1",
     "port": 11434,
     "auto_pull": true,                  // Auto-download models from registry
@@ -638,7 +638,7 @@ sudo ./remove-docker-nvidia.sh
 |---------|-------|----------|------|-------------|
 | vLLM | `vllm/vllm-openai:v0.15.1@sha256:…` | `--gpus all --shm-size 16g` | 8000 | `/health` |
 | SGLang | `lmsysorg/sglang:v0.5.9@sha256:…` | `--gpus all --shm-size 16g` | 30000 | `/health` |
-| Ollama | `ollama/ollama:0.20.2@sha256:…` | `--gpus all` | 11434 | `/api/tags` |
+| Ollama | `ollama/ollama:0.33.1@sha256:…` | `--gpus all` | 11434 | `/api/tags` |
 | llama.cpp | `ghcr.io/ggml-org/llama.cpp:server-cuda-b8067@sha256:…` | `--gpus all` | 8080 | `/health` |
 
 ### Container naming convention

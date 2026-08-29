@@ -19,9 +19,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from .docker_image_policy import RELEASE_DOCKER_IMAGES, resolve_managed_docker_image
+from .docker_image_policy import (
+    OLLAMA_RUNTIME_IMAGES,
+    RELEASE_DOCKER_IMAGES,
+    resolve_managed_docker_image,
+)
 from .docker_utils import CREATE_NO_WINDOW, IS_WINDOWS, validate_docker_image
-from .json_store import read_json_object
+from .json_store import JsonStoreError, read_json_object, update_json_object
 from .logger import log
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -74,6 +78,11 @@ _VENDOR_ALIASES = {
     "rocm": "amd",
     "none": "none",
     "cpu": "none",
+}
+_RECOMMENDED_OLLAMA_RUNTIME_VERSION = "0.33.1"
+_OLLAMA_RUNTIME_LABELS = {
+    "0.33.1": "0.33.1 (recommended)",
+    "0.20.2": "0.20.2 (legacy compatibility)",
 }
 
 
@@ -282,11 +291,23 @@ def _managed_image_reference(
     backend: str,
     vendor: str,
     config: dict[str, Any] | None = None,
+    runtime_version: object = None,
 ) -> str:
     backend, vendor = normalize_managed_image_selection(backend, vendor)
 
     effective_vendor = _policy_vendor(backend, vendor)
     release_vendor = "amd" if effective_vendor == "amd" else "nvidia"
+    if runtime_version is not None:
+        if backend != "ollama":
+            raise ValueError("Runtime version selection is supported only for Ollama")
+        if not isinstance(runtime_version, str):
+            raise TypeError("runtime_version must be a string")
+        normalized_version = runtime_version.strip()
+        if normalized_version not in OLLAMA_RUNTIME_IMAGES:
+            raise ValueError("Unsupported managed Ollama runtime version")
+        return validate_docker_image(
+            OLLAMA_RUNTIME_IMAGES[normalized_version][release_vendor]
+        )
     image_key = "docker_image_rocm" if release_vendor == "amd" else "docker_image"
     full_config = _load_config() if config is None else config
     backend_config = full_config.get(backend, {})
@@ -304,6 +325,51 @@ def _managed_image_reference(
             allow_unpinned=full_config.get("allow_unpinned_docker_images", False),
         )
     )
+
+
+def _ollama_runtime_version(image_reference: str, vendor: str) -> str:
+    effective_vendor = _policy_vendor("ollama", vendor)
+    release_vendor = "amd" if effective_vendor == "amd" else "nvidia"
+    for version, images in OLLAMA_RUNTIME_IMAGES.items():
+        if image_reference == images[release_vendor]:
+            return version
+    return ""
+
+
+def _ollama_runtime_options(image_reference: str, vendor: str) -> list[dict[str, Any]]:
+    selected_version = _ollama_runtime_version(image_reference, vendor)
+    effective_vendor = _policy_vendor("ollama", vendor)
+    release_vendor = "amd" if effective_vendor == "amd" else "nvidia"
+    return [
+        {
+            "version": version,
+            "label": _OLLAMA_RUNTIME_LABELS[version],
+            "image": images[release_vendor],
+            "selected": version == selected_version,
+            "recommended": version == _RECOMMENDED_OLLAMA_RUNTIME_VERSION,
+        }
+        for version, images in OLLAMA_RUNTIME_IMAGES.items()
+    ]
+
+
+def _persist_ollama_runtime_image(image_reference: str, vendor: str) -> None:
+    effective_vendor = _policy_vendor("ollama", vendor)
+    image_key = "docker_image_rocm" if effective_vendor == "amd" else "docker_image"
+
+    def update_ollama_config(config: dict[str, Any]) -> None:
+        ollama_config = config.get("ollama")
+        if not isinstance(ollama_config, dict):
+            ollama_config = {}
+            config["ollama"] = ollama_config
+        ollama_config[image_key] = image_reference
+
+    try:
+        update_json_object(_CONFIG_PATH, update_ollama_config, default={})
+    except (JsonStoreError, OSError) as error:
+        raise DockerImageManagerError(
+            "Ollama image was installed, but SmartLLM could not save the selected "
+            "runtime version"
+        ) from error
 
 
 def _format_size(size: object) -> str:
@@ -503,6 +569,15 @@ def get_docker_manager_overview(vendor: object = "auto") -> dict[str, Any]:
             "image": image_reference,
             "installed": False,
         }
+        if backend == "ollama":
+            image["runtime_version"] = _ollama_runtime_version(
+                image_reference,
+                selected_vendor,
+            )
+            image["runtime_versions"] = _ollama_runtime_options(
+                image_reference,
+                selected_vendor,
+            )
         if daemon_accessible:
             image.update(_inspect_image(image_reference))
         images.append(image)
@@ -537,19 +612,32 @@ def _docker_operation() -> Iterator[None]:
     if not _DOCKER_OPERATION_LOCK.acquire(blocking=False):
         log.warning(
             _LOG_PREFIX,
-            "Another Docker image install or removal is already running.",
+            "Another Docker image or container operation is already running.",
         )
-        raise DockerImageManagerBusy("Another Docker image operation is already running")
+        raise DockerImageManagerBusy(
+            "Another Docker image or container operation is already running"
+        )
     try:
         yield
     finally:
         _DOCKER_OPERATION_LOCK.release()
 
 
-def pull_managed_image(backend: object, vendor: object = "auto") -> dict[str, Any]:
+def pull_managed_image(
+    backend: object,
+    vendor: object = "auto",
+    runtime_version: object = None,
+) -> dict[str, Any]:
     normalized_backend = _normalize_backend(backend)
     normalized_vendor = _normalize_vendor(vendor)
-    image_reference = _managed_image_reference(normalized_backend, normalized_vendor)
+    normalized_runtime_version = (
+        runtime_version.strip() if isinstance(runtime_version, str) else runtime_version
+    )
+    image_reference = _managed_image_reference(
+        normalized_backend,
+        normalized_vendor,
+        runtime_version=normalized_runtime_version,
+    )
     backend_label = _BACKENDS[normalized_backend]["label"]
     with _docker_operation():
         _ensure_docker_accessible()
@@ -586,11 +674,19 @@ def pull_managed_image(backend: object, vendor: object = "auto") -> dict[str, An
             _LOG_PREFIX,
             f"{backend_label} image is ready{detail_suffix}.",
         )
+        if normalized_runtime_version is not None:
+            _persist_ollama_runtime_image(image_reference, normalized_vendor)
+            log.msg(
+                _LOG_PREFIX,
+                f"Selected Ollama runtime {normalized_runtime_version}; the managed container "
+                "will be recreated on its next start.",
+            )
     return {
         "success": True,
         "backend": normalized_backend,
         "vendor": normalized_vendor,
         "image": image_reference,
+        "runtime_version": normalized_runtime_version,
         "status": image,
     }
 
@@ -669,6 +765,54 @@ def remove_managed_image(backend: object, vendor: object = "auto") -> dict[str, 
     }
 
 
+def stop_managed_containers(
+    backend: object,
+    vendor: object = "auto",
+) -> dict[str, Any]:
+    normalized_backend = _normalize_backend(backend)
+    normalized_vendor = _normalize_vendor(vendor)
+    backend_label = _BACKENDS[normalized_backend]["label"]
+
+    with _docker_operation():
+        _ensure_docker_accessible()
+        if normalized_backend == "vllm":
+            from .backend_vllm_docker import stop_vllm_container
+
+            stop_succeeded = stop_vllm_container()
+        elif normalized_backend == "sglang":
+            from .backend_sglang_docker import stop_sglang_container
+
+            stop_succeeded = stop_sglang_container()
+        elif normalized_backend == "ollama":
+            from .backend_ollama_docker import stop_ollama_container
+
+            stop_succeeded = stop_ollama_container()
+        else:
+            from .backend_llamacpp_docker import stop_llamacpp_container
+
+            stop_succeeded = stop_llamacpp_container()
+
+        if not stop_succeeded:
+            log.error(
+                _LOG_PREFIX,
+                f"Could not stop the managed {backend_label} container(s).",
+            )
+            raise DockerImageManagerError(
+                f"Could not stop managed {backend_label} container(s)"
+            )
+        log.msg(
+            _LOG_PREFIX,
+            f"Managed {backend_label} container(s) are stopped.",
+        )
+
+    return {
+        "success": True,
+        "backend": normalized_backend,
+        "vendor": normalized_vendor,
+        "stopped": True,
+    }
+
+
 __all__ = [
     "DockerImageInUse",
     "DockerImageManagerBusy",
@@ -677,4 +821,5 @@ __all__ = [
     "normalize_managed_image_selection",
     "pull_managed_image",
     "remove_managed_image",
+    "stop_managed_containers",
 ]

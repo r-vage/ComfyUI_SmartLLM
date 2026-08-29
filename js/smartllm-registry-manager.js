@@ -39,7 +39,7 @@ const CSS = `
 .smartllm-docker-detail{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:4px 12px;margin:9px 0}.smartllm-docker-detail dt{color:var(--descrip-text,#aaa)}.smartllm-docker-detail dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .smartllm-docker-command{display:flex;align-items:center;gap:8px;margin-top:9px}.smartllm-docker-command code{flex:1;min-width:0;padding:8px;border-radius:5px;background:var(--comfy-input-bg,#202020);overflow:auto;white-space:pre}
 .smartllm-docker-guide{display:inline-block;margin-top:8px;color:#9ecbff}.smartllm-docker-note{color:var(--descrip-text,#aaa)}
-.smartllm-docker-images{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px}.smartllm-docker-image{display:flex;flex-direction:column;gap:7px;padding:11px;border:1px solid var(--border-color,#555);border-radius:7px;background:rgba(0,0,0,.1)}.smartllm-docker-image h3{margin:0}.smartllm-docker-image code{overflow-wrap:anywhere;color:var(--descrip-text,#bbb)}.smartllm-docker-image-actions{display:flex;gap:7px;margin-top:auto;padding-top:4px}
+.smartllm-docker-images{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:10px}.smartllm-docker-image{display:flex;flex-direction:column;gap:7px;padding:11px;border:1px solid var(--border-color,#555);border-radius:7px;background:rgba(0,0,0,.1)}.smartllm-docker-image h3{margin:0}.smartllm-docker-image code{overflow-wrap:anywhere;color:var(--descrip-text,#bbb)}.smartllm-docker-runtime{display:flex;flex-direction:column;gap:4px}.smartllm-docker-runtime label{font-size:11px;color:var(--descrip-text,#aaa);text-transform:uppercase;letter-spacing:.03em}.smartllm-docker-runtime select{padding:7px 8px;border:1px solid var(--border-color,#555);border-radius:5px;background:var(--comfy-input-bg,#222);color:inherit}.smartllm-docker-image-actions{display:flex;gap:7px;margin-top:auto;padding-top:4px}
 .smartllm-registry-classic{width:100%;margin:6px 0;padding:7px;border:1px solid var(--border-color,#555);border-radius:7px;background:var(--comfy-input-bg,#222);color:var(--input-text,#ddd);cursor:pointer}
 @media(max-width:760px){.smartllm-registry-body{grid-template-columns:1fr}.smartllm-registry-sidebar{max-height:230px;border-right:0;border-bottom:1px solid var(--border-color,#555)}.smartllm-registry-form{grid-template-columns:1fr}.smartllm-registry-field--wide{grid-column:auto}.smartllm-docker-images{grid-template-columns:1fr}.smartllm-docker-command{align-items:stretch;flex-direction:column}}
 `;
@@ -340,17 +340,57 @@ class RegistryManager {
             card.dataset.backend = image.backend;
             card.appendChild(element('h3', '', `${image.label} · ${image.installed ? 'Installed' : 'Missing'}`));
             card.appendChild(element('p', 'smartllm-docker-note', image.description));
-            card.appendChild(element('code', '', image.image));
+            const imageReference = element('code', '', image.image);
+            card.appendChild(imageReference);
+            let runtimeVersion = '';
+            let runtimeSelect = null;
+            let removeButton = null;
+            if (image.backend === 'ollama' && (image.runtime_versions || []).length) {
+                const runtime = element('div', 'smartllm-docker-runtime');
+                const runtimeLabel = element('label', '', 'Ollama runtime version');
+                runtimeSelect = document.createElement('select');
+                runtimeSelect.dataset.testid = 'smartllm-docker-ollama-version';
+                runtimeLabel.htmlFor = 'smartllm-docker-ollama-version';
+                runtimeSelect.id = 'smartllm-docker-ollama-version';
+                if (!image.runtime_version) {
+                    const customOption = document.createElement('option');
+                    customOption.value = '';
+                    customOption.textContent = 'Custom configured pin';
+                    runtimeSelect.appendChild(customOption);
+                }
+                for (const option of image.runtime_versions) {
+                    const versionOption = document.createElement('option');
+                    versionOption.value = option.version;
+                    versionOption.textContent = option.label;
+                    versionOption.dataset.image = option.image;
+                    runtimeSelect.appendChild(versionOption);
+                }
+                runtimeSelect.value = image.runtime_version || '';
+                runtimeVersion = runtimeSelect.value;
+                runtimeSelect.addEventListener('change', () => {
+                    runtimeVersion = runtimeSelect.value;
+                    const selected = Array.from(runtimeSelect.children).find(option => option.value === runtimeVersion);
+                    imageReference.textContent = selected?.dataset?.image || image.image;
+                    if (removeButton) removeButton.disabled = runtimeVersion !== (image.runtime_version || '') || !docker.daemon_accessible || this.busy;
+                });
+                runtime.append(runtimeLabel, runtimeSelect);
+                card.appendChild(runtime);
+                card.appendChild(element('small', 'smartllm-docker-note', 'Install & Select stores the immutable version pin. The managed Ollama container is recreated on its next start; model data remains in its persistent store.'));
+            }
             const metadata = [image.size, image.short_id ? `ID ${image.short_id}` : '', image.created ? image.created.slice(0, 10) : ''].filter(Boolean).join(' · ');
             if (metadata) card.appendChild(element('small', 'smartllm-docker-note', metadata));
             const actions = element('div', 'smartllm-docker-image-actions');
-            const install = this.button(image.installed ? 'Update / Repair' : 'Install', () => this.dockerImageAction('pull', image), `smartllm-docker-pull-${image.backend}`);
+            const installLabel = runtimeSelect ? 'Install & Select' : (image.installed ? 'Update / Repair' : 'Install');
+            const install = this.button(installLabel, () => this.dockerImageAction('pull', image, runtimeVersion), `smartllm-docker-pull-${image.backend}`);
             install.disabled = !docker.daemon_accessible || this.busy;
             actions.appendChild(install);
+            const stop = this.button('Stop', () => this.dockerImageAction('stop', image), `smartllm-docker-stop-${image.backend}`, true);
+            stop.disabled = !docker.daemon_accessible || this.busy;
+            actions.appendChild(stop);
             if (image.installed) {
-                const remove = this.button('Remove', () => this.dockerImageAction('remove', image), `smartllm-docker-remove-${image.backend}`, true);
-                remove.disabled = !docker.daemon_accessible || this.busy;
-                actions.appendChild(remove);
+                removeButton = this.button('Remove', () => this.dockerImageAction('remove', image), `smartllm-docker-remove-${image.backend}`, true);
+                removeButton.disabled = !docker.daemon_accessible || this.busy;
+                actions.appendChild(removeButton);
             }
             card.appendChild(actions);
             imageGrid.appendChild(card);
@@ -369,12 +409,18 @@ class RegistryManager {
         this.setStatus('Docker overview refreshed.', 'success');
     }
 
-    async dockerImageAction(action, image) {
+    async dockerImageAction(action, image, runtimeVersion = '') {
         if (action === 'remove' && !window.confirm(`Remove the managed Docker image for ${image.label}?\n\nSmartLLM will refuse if any container still uses it.`)) return;
-        const verb = action === 'pull' ? 'Installing' : 'Removing';
-        const result = await this.action(`${verb} ${image.label} image`, () => request(`/smartlml/docker/images/${action}`, {
+        if (action === 'stop' && !window.confirm(`Stop SmartLLM-managed ${image.label} container(s)?\n\nSmartLLM will refuse while a model execution is active.`)) return;
+        const verb = action === 'pull' ? 'Installing' : (action === 'stop' ? 'Stopping' : 'Removing');
+        const payload = {
             backend: image.backend,
             vendor: this.dockerVendor.value || 'auto',
+        };
+        if (action === 'pull' && runtimeVersion) payload.runtime_version = runtimeVersion;
+        const target = action === 'stop' ? 'container(s)' : 'image';
+        const result = await this.action(`${verb} ${image.label} ${target}`, () => request(`/smartlml/docker/images/${action}`, {
+            ...payload,
         }));
         if (result) await this.refreshDocker();
     }

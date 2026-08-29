@@ -9,14 +9,27 @@ _LOG_PREFIX = "Docker Image Policy"
 _TAG_DIGEST_RE = re.compile(r"@sha256:[0-9a-f]{64}$")
 
 
-RELEASE_DOCKER_IMAGES: Mapping[str, Mapping[str, str]] = MappingProxyType(
+OLLAMA_RUNTIME_IMAGES: Mapping[str, Mapping[str, str]] = MappingProxyType(
     {
-        "ollama": MappingProxyType(
+        "0.33.1": MappingProxyType(
             {
                 "nvidia": "ollama/ollama:0.33.1@sha256:075246f72d4109385b4a01c3ac8e9cbd26a0bcb21cd7aa30edbccd24e1b3180c",
                 "amd": "ollama/ollama:0.33.1-rocm@sha256:e4e051589e6b4f345f98672cbd4679949c8d75e619e53c3e823d3ed3b8139fec",
             }
         ),
+        "0.20.2": MappingProxyType(
+            {
+                "nvidia": "ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd",
+                "amd": "ollama/ollama:0.20.2-rocm@sha256:d90fa63ebb73e34203ce169f55ec78ef3a47538a03cefb951df14bcdedb8c85f",
+            }
+        ),
+    }
+)
+
+
+RELEASE_DOCKER_IMAGES: Mapping[str, Mapping[str, str]] = MappingProxyType(
+    {
+        "ollama": OLLAMA_RUNTIME_IMAGES["0.33.1"],
         "vllm": MappingProxyType(
             {
                 "nvidia": "vllm/vllm-openai:v0.15.1@sha256:8c9aaddfa6011b9651d06834d2fb90bdb9ab6ced4b420ec76925024eb12b22d0",
@@ -82,6 +95,15 @@ _LEGACY_RELEASE_ALIASES: Mapping[str, frozenset[str]] = MappingProxyType(
     }
 )
 
+_OLLAMA_VERSION_ALIASES: Mapping[str, str] = MappingProxyType(
+    {
+        "ollama/ollama:0.33.1": "0.33.1",
+        "ollama/ollama:0.33.1-rocm": "0.33.1",
+        "ollama/ollama:0.20.2": "0.20.2",
+        "ollama/ollama:0.20.2-rocm": "0.20.2",
+    }
+)
+
 
 _warning_lock = threading.Lock()
 _warned_development_images: set[tuple[str, str]] = set()
@@ -116,6 +138,9 @@ def resolve_managed_docker_image(
 
     release_vendor = "amd" if gpu_vendor == "amd" else "nvidia"
     release_image = RELEASE_DOCKER_IMAGES[backend][release_vendor]
+    if backend == "ollama" and configured_image in _OLLAMA_VERSION_ALIASES:
+        version = _OLLAMA_VERSION_ALIASES[configured_image]
+        return OLLAMA_RUNTIME_IMAGES[version][release_vendor]
     if configured_image in _LEGACY_RELEASE_ALIASES[backend]:
         log.debug(
             _LOG_PREFIX,

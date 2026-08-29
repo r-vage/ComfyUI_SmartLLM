@@ -329,27 +329,6 @@ def _apply_vlm_chat_template(processor, messages: list) -> str:
     )
 
 
-def _maybe_offload_vlm(smart_lm_instance, device: torch.device) -> None:
-    # Offload non-quantized VLM to CPU after generation if not keeping loaded.
-    # Saves VRAM for other ComfyUI models.
-    keep_loaded = getattr(smart_lm_instance, "keep_model_loaded", False)
-    is_quantized = getattr(smart_lm_instance, "is_quantized", True)
-    if keep_loaded or is_quantized:
-        return
-    # Skip offload for accelerate-dispatched models — they manage their own device placement
-    if _is_accelerate_dispatched(smart_lm_instance.model):
-        return
-    try:
-        import comfy.model_management as mm  # type: ignore
-
-        offload_device = mm.unet_offload_device()
-        if offload_device != device:
-            smart_lm_instance.model.to(offload_device)
-            mm.soft_empty_cache()
-    except Exception:
-        pass
-
-
 # ==============================================================================
 # PER-FAMILY POST-PROCESSING
 # ==============================================================================
@@ -1091,9 +1070,9 @@ def _generate_vlm(
         cleaned_text, _ = clean_model_output(raw_text)
         parsed_data = {}
 
-    # ── 10. OFFLOAD ─────────────────────────────────────────────────────
-    _maybe_offload_vlm(smart_lm_instance, device)
-
+    # ── 10. RESULT ───────────────────────────────────────────────────────
+    # Offload is intentionally deferred to the node's execution cleanup so one
+    # loaded model stays on its effective device for every mapped/list item.
     log.debug(_LOG_PREFIX, f"  Generated: {cleaned_text[:200]}...")
     return cleaned_text, parsed_data
 

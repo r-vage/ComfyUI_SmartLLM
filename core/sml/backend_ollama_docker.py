@@ -88,6 +88,53 @@ _OLLAMA_QUANTIZATIONS = {
 }
 
 
+class OllamaModelLoadError(RuntimeError):
+    # Ollama accepted the model name but rejected the installed artifact.
+    pass
+
+
+def _extract_ollama_error_detail(response: Any) -> str:
+    try:
+        payload = json.loads(response.text)
+    except (AttributeError, TypeError, ValueError):
+        return ""
+
+    if not isinstance(payload, dict):
+        return ""
+    detail = payload.get("error")
+    if isinstance(detail, dict):
+        detail = detail.get("message") or detail.get("error")
+    return detail.strip() if isinstance(detail, str) else ""
+
+
+def _ollama_model_load_error(
+    model_name: str, response: Any
+) -> OllamaModelLoadError | None:
+    detail = _extract_ollama_error_detail(response)
+    shape_match = re.search(
+        r"tensor\s+['\"](?P<tensor>[^'\"]+)['\"]\s+has wrong shape;\s*"
+        r"expected\s+(?P<expected>[\d,\s]+?)\s*got\s+"
+        r"(?P<actual>[\d,\s]+?)(?:\n|$)",
+        detail,
+        re.IGNORECASE,
+    )
+    if not shape_match or "check_tensor_dims" not in detail.lower():
+        return None
+
+    def format_shape(value: str) -> str:
+        return " × ".join(re.findall(r"\d+", value))
+
+    tensor_name = shape_match.group("tensor")
+    expected = format_shape(shape_match.group("expected"))
+    actual = format_shape(shape_match.group("actual"))
+    return OllamaModelLoadError(
+        f"Ollama could not load model '{model_name}': incompatible tensor "
+        f"dimensions for '{tensor_name}' (expected {expected}; got {actual}). "
+        "The model is installed, but its artifact is malformed or incompatible "
+        "with this Ollama version. Use a corrected model build or another tag."
+    )
+
+
 def get_ollama_docker_image() -> str:
     # Resolve the configured image through the shared release-pin policy.
     from .device import detect_gpu_vendor
@@ -1937,6 +1984,9 @@ def generate_with_ollama(
                 f"Ollama API error: HTTP {response.status_code}",
             )
             log.debug(_LOG_PREFIX, f"Ollama API error body: {response.text[:2000]}")
+            model_load_error = _ollama_model_load_error(model_name, response)
+            if model_load_error is not None:
+                raise model_load_error
             raise RuntimeError(
                 f"Ollama generation request failed with HTTP {response.status_code}"
             )
@@ -1948,6 +1998,8 @@ def generate_with_ollama(
         )
         log.error(_LOG_PREFIX, docker_error_handler.format_error_message(error))
         raise TimeoutError("Ollama generation request timed out") from e
+    except OllamaModelLoadError:
+        raise
     except Exception as e:
         log.error(_LOG_PREFIX, f"Ollama request failed ({type(e).__name__})")
         log.debug(_LOG_PREFIX, f"Ollama request error: {e}")
@@ -2173,8 +2225,13 @@ def generate_with_ollama_vision(
                     _LOG_PREFIX,
                     f"/api/chat failed: {response.status_code} - {error_detail}",
                 )
+                model_load_error = _ollama_model_load_error(model_name, response)
+                if model_load_error is not None:
+                    raise model_load_error
                 break  # Don't retry on HTTP errors
 
+        except OllamaModelLoadError:
+            raise
         except Exception as e:
             log.debug(_LOG_PREFIX, f"/api/chat request failed: {e}")
             break  # Don't retry on exceptions
@@ -2240,6 +2297,10 @@ def generate_with_ollama_vision(
             )
             log.debug(_LOG_PREFIX, f"Ollama vision API error body: {error_detail}")
 
+            model_load_error = _ollama_model_load_error(model_name, response)
+            if model_load_error is not None:
+                raise model_load_error
+
             # Check for version-related issues
             if "ministral" in model_name.lower():
                 log.error(
@@ -2251,6 +2312,8 @@ def generate_with_ollama_vision(
                 f"Ollama vision request failed with HTTP {response.status_code}"
             )
 
+    except OllamaModelLoadError:
+        raise
     except Exception as e:
         log.error(
             _LOG_PREFIX,

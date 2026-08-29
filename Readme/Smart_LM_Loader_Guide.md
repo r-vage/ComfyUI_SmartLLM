@@ -505,7 +505,7 @@ Docker backends are configured in `docker_config.json`:
   "allow_unpinned_docker_images": false,
   "vllm":     { "docker_image": "vllm/vllm-openai:v0.15.1@sha256:8c9aaddfa6011b9651d06834d2fb90bdb9ab6ced4b420ec76925024eb12b22d0", "port": 8000, "allow_mistral_weight_conversion": false },
   "sglang":   { "docker_image": "lmsysorg/sglang:v0.5.9@sha256:e216b7dc4ac1938b599b982233ccf7eb2b11dd1f07fc2e00a7b9841052c553be", "port": 30000 },
-  "ollama":   { "docker_image": "ollama/ollama:0.20.2@sha256:0455f166da85b1d07f694c33ba09278ca649603c0611ba8e46272b16eed7fccd", "port": 11434 },
+  "ollama":   { "docker_image": "ollama/ollama:0.33.1@sha256:075246f72d4109385b4a01c3ac8e9cbd26a0bcb21cd7aa30edbccd24e1b3180c", "port": 11434 },
   "llamacpp": { "docker_image": "ghcr.io/ggml-org/llama.cpp:server-cuda-b8067@sha256:e2c4612f86f6c24408f87f2743fe33063d343c7e9f523ce24a9a60ee401fde05", "port": 8080 }
 }
 ```
@@ -519,6 +519,10 @@ Docker backends are configured in `docker_config.json`:
   `allow_unpinned_docker_images` to `true` only for intentional development;
   mutable images disable reproducibility and produce a warning
 - Changed image pins or local image identities force exact-container recreation
+- Smart LM Manager's **Docker Images** tab can install and select the qualified
+  Ollama 0.33.1 runtime or the pinned 0.20.2 legacy-compatibility runtime. This is
+  a global runtime choice; it does not modify model registry entries or delete the
+  persistent Ollama model store.
 - Hugging Face Mistral3/Pixtral-to-native conversion is disabled by default.
   Set `vllm.allow_mistral_weight_conversion` to `true` only after reviewing
   the logged RAM/disk estimate. Conversion is sharded, transaction-marked,

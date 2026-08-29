@@ -4,7 +4,7 @@ One adaptive interface for vision-language models, text models, WD14 taggers,
 Florence grounding, and YOLO detection—plus a registry manager that keeps model
 identity, acquisition, and trust decisions explicit.
 
-Version **1.0.2** provides three Nodes 2.0-ready nodes. ComfyUI Eclipse is
+Version **1.0.4** provides three Nodes 2.0-ready nodes. ComfyUI Eclipse is
 optional.
 
 ![Annotated Nodes 2.0 overview of Smart LM Loader and Smart Detection](Readme/assets/smartllm-overview.png)
@@ -167,11 +167,19 @@ The **Docker Images** tab reports Docker Engine, daemon-access, user-group, and 
 runtime readiness, then lists the qualified backend images for the selected
 platform. Linux users can copy the included terminal installer command or open the
 installation guide; SmartLLM never requests sudo credentials in the browser.
-Managed images can be installed, updated, or removed from this tab. Removal is
-refused while any container still references the selected image. Image operations
-report start, completion, and failure milestones in the ComfyUI console; select
+Managed images can be installed, updated, removed, or have their SmartLLM-managed
+containers stopped from this tab. Stop and removal are refused while a SmartLLM
+model execution is active, so a running prompt is never interrupted; image removal
+is also refused while any container still references the selected image. Image
+operations report start, completion, and failure milestones in the ComfyUI console;
+select
 **debug** under SmartLLM's **Log Level** setting to also see filtered Docker pull
-progress and command output.
+progress and command output. The Ollama card also offers qualified runtime versions:
+use **0.33.1** for current models or the pinned **0.20.2 legacy compatibility**
+runtime when testing an older model artifact. **Install & Select** changes the
+global Ollama runtime, not an individual registry entry. The existing managed
+container is recreated on its next start while the persistent Ollama model store is
+preserved.
 
 ## Included nodes
 

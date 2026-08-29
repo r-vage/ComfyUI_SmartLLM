@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-08-29
+
+### Version: 1.0.4
+
+- **Feat**
+  - Add a qualified Ollama runtime-version selector to Smart LM Manager's Docker Images tab. Installing a selected 0.33.1 or legacy-compatible 0.20.2 image persists its immutable vendor-specific pin and lets the existing container-spec check recreate Ollama on its next start without changing registry entries or deleting model data.
+  - Add per-backend Stop controls for SmartLLM-managed Docker containers. Container shutdown reuses the server-side model-maintenance gate and returns a busy response instead of interrupting an active SmartLLM execution.
+
+- **Fix**
+  - Keep a Transformers VLM on its effective device for every mapped/list item and defer Keep Loaded off cleanup until the complete node execution finishes, preventing later prompts from sending CUDA token IDs into a prematurely CPU-offloaded embedding layer.
+  - Preserve Ollama tensor-shape model-load failures as actionable installed-artifact incompatibility errors, including the rejected tensor and expected/actual dimensions, instead of replacing them with a misleading model-file-not-found diagnosis.
+
+**Changed files:**
+- `core/sml/backend_ollama_docker.py`
+- `core/sml/docker_error_handler.py`
+- `core/sml/docker_image_manager.py`
+- `core/sml/docker_image_policy.py`
+- `core/sml/server_endpoints.py`
+- `core/sml/backend_transformers.py`
+- `js/smartllm-registry-manager.js`
+- `README.md`
+- `Readme/Docker_Installation_Guide_Linux.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `pyproject.toml`
+
 ## 2026-08-28
 
 ### Version: 1.0.3
