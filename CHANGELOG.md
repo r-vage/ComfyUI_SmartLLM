@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-09-01
+
+### Version: 1.0.5
+
+- **Docs**
+  - Correct the Smart LM Loader multi-task visual tour so the final-output callout targets the image and text output sockets instead of the seed controls, with separated exterior routes and visible line segments before each arrowhead.
+
+**Changed files:**
+- `Readme/assets/multi-task.png`
+- `pyproject.toml`
+
 ## 2026-08-29
 
 ### Version: 1.0.4
