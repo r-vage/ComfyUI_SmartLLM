@@ -177,7 +177,7 @@ that task's built-in instructions, so the provided text must be self-contained:
 include the model's role, the complete objective, any rules or constraints, and
 the required output format. In this mode, `user_prompt` is the corresponding user
 message or source material. Leave `system_prompt` disconnected when you want to
-use a predefined task such as Detailed Description, Wan/LTX prompting, or Song
+use a predefined task such as Detailed Description, Wan/LTX/MiniMax H3 prompting, or Song
 Lyrics.
 
 ### Outputs
@@ -397,6 +397,8 @@ ONNX Runtime for SmilingWolf WD14 tagger models.
 | **Wan 2.2 Timeline 20s** | Optional | Four timeline paragraphs (5s each), each with per-second markers |
 | **Wan 2.2 CN Atomic** | Optional | Chinese Wan prompt using explicit initial state, ordered physical actions, and final state |
 | **LTX 2.3 I2V** | Recommended | One image-to-video paragraph combining the reference image with requested motion, sound, dialogue, and style |
+| **MiniMax H3 Scene 5s** | Optional | One continuous 5-second H3 audio-video scene using the required visual, soundscape, and music fields |
+| **MiniMax H3 Timeline 15s** | Optional | A 15-second H3 audio-video timeline that preserves numbered shots or creates 2–4 timed shots from a short story |
 
 ### Vision Tasks (all VLM families)
 
@@ -555,18 +557,23 @@ Docker backends are configured in `docker_config.json`:
 3. Type the source text in `user_prompt`
 4. Queue Prompt
 
-### Image-to-Video Prompt (Wan or LTX)
+### Audio-Video Prompt (Wan, LTX, or MiniMax H3)
 
-1. Select a vision-language model and connect the intended starting image to `images`
-2. Choose the Wan task that matches the target duration and format, or choose **LTX 2.3 I2V**
-3. In `user_prompt`, describe what should happen: motion, action, dialogue, sound, style, pacing, or an explicitly requested camera move
+1. Select a text-capable model for text-to-video, or select a vision-language model and connect the intended starting image to `images`
+2. Choose the Wan task that matches the target duration and format, **LTX 2.3 I2V**, **MiniMax H3 Scene 5s**, or **MiniMax H3 Timeline 15s**
+3. In `user_prompt`, enter a short story or describe the motion, action, dialogue, sound, style, pacing, and camera behavior. For the H3 timeline task, you can also provide `Shot 1: ...`, `Shot 2: ...` entries with optional timestamps
 4. Queue Prompt
 5. Send the generated text to the corresponding video workflow
 
-The connected image supplies the visual starting point, including the subject's
-appearance and the existing setting. `user_prompt` supplies the intended event.
-The selected task's built-in system prompt combines both into the format expected
-by Wan or LTX, so no custom `system_prompt` connection is needed.
+When connected, the image supplies the visual starting point, including the
+subject's appearance and the existing setting. The MiniMax H3 tasks reduce that
+first-frame description to essential visual anchors and focus the rest of the
+prompt on motion and audio. Without an image, the H3 tasks build the complete
+scene from `user_prompt`. **MiniMax H3 Scene 5s** creates one continuous shot;
+**MiniMax H3 Timeline 15s** uses H3 shot labels and increasing timestamps within
+15 seconds. The selected task's built-in system prompt and optional few-shot
+training produce the expected format without a custom `system_prompt` connection.
+Disable the **Training** chip when a small-context model needs a shorter prompt.
 
 ### Song Lyrics
 

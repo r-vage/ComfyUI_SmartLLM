@@ -121,6 +121,8 @@ _FLEXIBLE_TASKS = {
     "Wan 2.2 Timeline 20s",
     "Wan 2.2 CN Atomic",
     "LTX 2.3 I2V",
+    "MiniMax H3 Scene 5s",
+    "MiniMax H3 Timeline 15s",
 }
 
 

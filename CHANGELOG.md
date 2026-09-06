@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-06
+
+### Version: 1.0.6
+
+- **Feat**
+  - Add optional-image **MiniMax H3 Scene 5s** and **MiniMax H3 Timeline 15s** tasks that turn short stories or numbered shot lists into H3's audio-video prompt structure, including conditional first-frame references, concise image anchors, dialogue, soundscape, music, and duration-safe shot timing.
+  - Add neutral few-shot examples for both MiniMax H3 tasks to the standard and NSFW training profiles so strict field and timeline formatting remains available in either profile.
+
+- **Docs**
+  - Document MiniMax H3 text-to-video, image-to-video, scene, timeline, and Training-chip usage in the Smart LM Loader guide.
+
+**Changed files:**
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `README.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/sml/tasks.py`
+- `py/RvLoader_SmartModelLoader_LM.py`
+- `pyproject.toml`
+
 ## 2026-09-01
 
 ### Version: 1.0.5

@@ -50,7 +50,7 @@ text plus an image when the selected task supports one.
 
 Some generative tasks intentionally use `user_prompt` as their source material:
 
-- For a Wan or LTX image-to-video task, connect the starting image and describe
+- For a Wan, LTX, or MiniMax H3 image-to-video task, connect the starting image and describe
   the intended motion, action, dialogue, style, or camera behavior in
   `user_prompt`. The task prompt tells the model how to format the result; the
   image establishes visual details such as the person's appearance, while the

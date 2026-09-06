@@ -1842,6 +1842,76 @@
             []
         ]
     ],
+    "minimax_h3_scene_5s": [
+        [
+            "display_name",
+            "MiniMax H3 Scene 5s"
+        ],
+        [
+            "instruction_template",
+            "Convert the following short story into one continuous 5-second MiniMax H3 audio-video prompt using exactly integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Input: \"{prompt}\""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Convert the following short story into one continuous 5-second MiniMax H3 audio-video prompt using exactly integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Input: \"At dawn, a lighthouse keeper throws open the storm shutters, spots a rescue boat below, and calls out for it to hold course.\""
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "integrated_multimodal_description: [Shot 1] Live-action coastal drama in a continuous medium-wide shot inside a weathered lighthouse lantern room at cold blue dawn. A grey-haired keeper in a heavy navy sweater yanks both wooden storm shutters open as the camera pushes forward with small amplitude at slow speed. Wind drives mist through the opening and lifts the loose papers beside him. He spots a small orange rescue boat pitching between white-capped waves below, grips the frame, and leans into the gale. The keeper (S1) raises his gravelly voice and calls, <d>[English] Hold your course!</d> while pointing toward the clear channel beyond the rocks.\n\noverall_soundscape: Gale-force wind buffets the shutters and rattles the windowpanes while waves crash against the cliff below. Hinges groan, papers snap in the draft, and the keeper's boots scrape across the wooden floor.\n\nnon_diegetic_music: A restrained cinematic score of low cellos, distant brass, and a steady military snare builds from a slow pulse into a brief hopeful swell."
+                    ]
+                ]
+            ]
+        ]
+    ],
+    "minimax_h3_timeline_15s": [
+        [
+            "display_name",
+            "MiniMax H3 Timeline 15s"
+        ],
+        [
+            "instruction_template",
+            "Convert the following story or numbered shot list into a 15-second MiniMax H3 audio-video timeline using exactly integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Input: \"{prompt}\""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Convert the following story or numbered shot list into a 15-second MiniMax H3 audio-video timeline using exactly integrated_multimodal_description, overall_soundscape, and non_diegetic_music. Input: \"Shot 1: On a rain-soaked rural platform, a conductor checks his watch as the last passenger runs toward the train. Shot 2: He holds the door and shouts that it is the final call. Shot 3: The passenger boards and the train pulls away into the night.\""
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "integrated_multimodal_description: [Shot 1] Live-action railway drama with fine 35mm grain and cold sodium-vapor lighting. In a wide view of a rain-soaked rural platform at night, a uniformed conductor checks his silver pocket watch beside the open last carriage while a passenger in a tan coat runs toward him through the downpour. The camera tracks the passenger with medium amplitude at moderate speed as shoes splash through puddles and the conductor scans the platform. [Shot 2] At 00:06.000, the camera cuts to a medium shot at the carriage door. The conductor braces one hand against the door, waves the passenger forward, and the conductor (S1) shouts, <d>[English] Final call! Keep moving!</d> The passenger reaches the step, grabs the brass rail, and climbs aboard as the conductor swings himself in behind. [Shot 3] At 00:11.000, the camera cuts to a low wide shot beside the rails. The door slams shut, warm carriage windows slide past, and the train accelerates away beneath the rain until its red tail lamps recede into the dark.\n\noverall_soundscape: Heavy rain hisses on the platform canopy over the passenger's splashing footsteps and ragged breathing. The conductor's watch clicks shut, the carriage door slams with a metallic bang, and steel wheels clatter into a rising rhythm as the engine pulls away.\n\nnon_diegetic_music: A tense orchestral pulse led by muted strings and low piano follows the runner, then opens into sustained brass and warmer strings as the passenger boards. The score softens into a slow, relieved cadence while the train disappears."
+                    ]
+                ]
+            ]
+        ]
+    ],
     "ltx_2.3_i2v": [
         [
             "display_name",

@@ -57,6 +57,8 @@ TASK_WAN_SCENE_20S = Task("Wan 2.2 Scene 20s", "custom", False)
 TASK_WAN_TIMELINE_20S = Task("Wan 2.2 Timeline 20s", "custom", False)
 TASK_WAN_CN_ATOMIC = Task("Wan 2.2 CN Atomic", "custom", False)
 TASK_LTX_23_I2V = Task("LTX 2.3 I2V", "custom", False)
+TASK_MINIMAX_H3_SCENE_5S = Task("MiniMax H3 Scene 5s", "custom", False)
+TASK_MINIMAX_H3_TIMELINE_15S = Task("MiniMax H3 Timeline 15s", "custom", False)
 
 # ── Vision tasks (all families) ───────────────────────────────────
 TASK_SIMPLE_DESC = Task("Simple Description", "vision", True, "caption", "<CAPTION>")
@@ -171,6 +173,8 @@ ALL_TASKS: tuple[Task, ...] = (
     TASK_WAN_TIMELINE_20S,
     TASK_WAN_CN_ATOMIC,
     TASK_LTX_23_I2V,
+    TASK_MINIMAX_H3_SCENE_5S,
+    TASK_MINIMAX_H3_TIMELINE_15S,
     TASK_SIMPLE_DESC,
     TASK_DETAILED_DESC,
     TASK_ULTRA_DESC,
