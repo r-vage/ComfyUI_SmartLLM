@@ -642,6 +642,7 @@ def _generate_vlm(
     # Returns:
     #     Tuple of (generated_text, parsed_data_dict)
     from .model_types import ModelType
+    from .tasks import get_h3_mode
 
     log.debug(
         _LOG_PREFIX,
@@ -659,6 +660,13 @@ def _generate_vlm(
     max_pixels = get_max_pixels_for_model_type(model_type)
     image_pil, frames, original_size = _prepare_vlm_image(
         image, max_pixels, frame_count
+    )
+    h3_reference_images = (
+        frames
+        if get_h3_mode(vision_task or "") is not None
+        and frames is not None
+        and len(frames) > 1
+        else None
     )
 
     # ── 3. BUILD MESSAGES ───────────────────────────────────────────────
@@ -747,7 +755,13 @@ def _generate_vlm(
                 if few_shot:
                     messages.extend(few_shot)
 
-            if image_pil is not None:
+            if h3_reference_images is not None:
+                user_content = [
+                    {"type": "image"} for _image in h3_reference_images
+                ]
+                if user_message:
+                    user_content.append({"type": "text", "text": user_message})
+            elif image_pil is not None:
                 user_content = [{"type": "image"}]
                 if user_message:
                     user_content.append({"type": "text", "text": user_message})
@@ -770,9 +784,14 @@ def _generate_vlm(
                     messages.extend(few_shot)
 
             user_content = []
-            if image_pil and frames is None:
+            if h3_reference_images is not None:
+                user_content.extend(
+                    {"type": "image", "image": image}
+                    for image in h3_reference_images
+                )
+            elif image_pil and frames is None:
                 user_content.append({"type": "image", "image": image_pil})
-            if frames and len(frames) > 1:
+            elif frames and len(frames) > 1:
                 user_content.append({"type": "video", "video": frames})
 
             prompt_text = system_prompt or ""
@@ -803,7 +822,13 @@ def _generate_vlm(
             if not prompt_text:
                 prompt_text = "Describe this image in detail."
 
-            if image_pil is not None:
+            if h3_reference_images is not None:
+                content = [
+                    {"type": "image"} for _image in h3_reference_images
+                ]
+                content.append({"type": "text", "text": prompt_text})
+                messages.append({"role": "user", "content": content})
+            elif image_pil is not None:
                 messages.append(
                     {
                         "role": "user",
@@ -836,7 +861,11 @@ def _generate_vlm(
     use_unified_template = (
         model_type == ModelType.QWENVL
         and image_pil is not None
-        and (frames is None or len(frames) <= 1)
+        and (
+            h3_reference_images is not None
+            or frames is None
+            or len(frames) <= 1
+        )
     )
 
     if use_unified_template:
@@ -897,12 +926,19 @@ def _generate_vlm(
             "text": formatted_text,
             "return_tensors": "pt",
         }
-        if image_pil is not None and frames is None:
+        if h3_reference_images is not None:
+            processor_kwargs["images"] = h3_reference_images
+        elif image_pil is not None and frames is None:
             # Single image: Qwen expects list, others expect single PIL
             processor_kwargs["images"] = (
                 [image_pil] if model_type == ModelType.QWENVL else image_pil
             )
-        if frames and len(frames) > 1 and model_type == ModelType.QWENVL:
+        if (
+            frames
+            and len(frames) > 1
+            and model_type == ModelType.QWENVL
+            and h3_reference_images is None
+        ):
             processor_kwargs["videos"] = [frames]
 
         inputs = smart_lm_instance.processor(**processor_kwargs)
@@ -921,7 +957,11 @@ def _generate_vlm(
             log.debug(_LOG_PREFIX, f"    {k}: shape={v.shape}, dtype={v.dtype}")
 
     # ── 6. BUILD GEN KWARGS ─────────────────────────────────────────────
-    has_video = frames is not None and len(frames) > 1
+    has_video = (
+        frames is not None
+        and len(frames) > 1
+        and h3_reference_images is None
+    )
     effective_beams = 1 if has_video and num_beams > 1 else num_beams
     if has_video and num_beams > 1:
         log.msg(

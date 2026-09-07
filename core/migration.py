@@ -27,6 +27,45 @@ _CONFIG_KEYS = {
     "modelscope_token",
 }
 _ECLIPSE_CONFIG_KEYS = frozenset(_CONFIG_KEYS)
+_DEFAULT_VALUE_UPGRADES = {
+    Path("config/system_prompts.json"): {
+        "MiniMax H3 Scene 5s": "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
+        "Wan 2.2 Scene 5s": "4e85319ae508d07c8df224dabb11c02cd686f88ef11557071d1d7c7aae48ff5f",
+        "Wan 2.2 Timeline 5s": "955c2d2efd52d093fa57ff646652615a145b0e7b46d60f95909af2c52987d5e0",
+        "Wan 2.2 Timeline 5s 2s": "88d1e095216abcd1acd1721f9b63f4e104f93711e261f5b7553b6f9b15d2c0d0",
+        "Wan 2.2 Timeline 5s 3s": "46761f8c47641b6d776a8b1d3ba29806f26aa48ad904b9fa3c10b2076b847225",
+        "Wan 2.2 Scene 10s": "ecd4a75b5b62b9028fda5e4f23a23bad082620f61e99266f67d270fd62d59513",
+        "Wan 2.2 Timeline 10s": "361d1dcd651abaf2cbbdf07224d01e96d2c3e06704dbc928bd492e895e1ab722",
+        "Wan 2.2 Scene 20s": "7a919e2e6e6b286818a2cc640bac7fb580f66dd09a2628b9b9f95dd9f4ef05e2",
+        "Wan 2.2 Timeline 20s": "706468776084156d1c42bbbfcbb7556b47309740dafb1561ed3b133d47a40b02",
+        "Wan 2.2 CN Atomic": "7a5523da49285d67ce93f538a6b89c538ee4ab8e65900805e4b28a11321220cd",
+        "LTX 2.3 I2V": "dbf829e66bc2232fb5dd542c069f804b81641e2add4cc3233c9d8def4b705eeb",
+    },
+    Path("config/llm_few_shot_training.json"): {
+        "minimax_h3_scene_5s": "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+        "wan_2.2_scene_5s": "bd734ddd2927506eea6208fc2eaf9f3aac38601853fac3e360c439b43a6b4712",
+        "wan_2.2_timeline_5s": "74ce9c85afcb14c01dcc48ce682c8cd844aabd7cedb14c3e4c5644383df2579c",
+        "wan_2.2_timeline_5s_2s": "8c63941e5b244b21a6b5473afea1e2a7c438a6fbf6114f488df4fd36136166a8",
+        "wan_2.2_timeline_5s_3s": "dbfc717968a30a7edfe0cf1461708a528bc30e295acf1bdf8e0be757266faf09",
+        "wan_2.2_scene_10s": "289bd17589b10f0eb2bcab9b8a9e42fd37bc2d30c1884ef5ed4aa08f43b707ea",
+        "wan_2.2_timeline_10s": "839803e40b31b23d11f6e234a8788a3893d87ff8a2620c7b05110a182d178714",
+        "wan_2.2_scene_20s": "cfde6cefcb4e1e1af9c06004dfe5d877e75b41dde6bf8f63d395bd5db666d8c5",
+        "wan_2.2_timeline_20s": "3cf9e9399d9f94bbcfe34cb8d85ddc12dc0ea931c98f5d75a1f6ae918713e53b",
+        "ltx_2.3_i2v": "ddddcb90ebc4292ae937be87f8fe1d542e6ab55416fc777a56dd44208ea4a397",
+    },
+    Path("config/llm_few_shot_training_nsfw.json"): {
+        "minimax_h3_scene_5s": "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+        "wan_2.2_scene_5s": "1c61cde6ddc8c83ef910f2bee4fa6ce644cecd6f300a76267ba000e75e793f44",
+        "wan_2.2_timeline_5s": "ce2153d353b6849013343f621fd7beb47a77a0ca32eff391eb5a97905a1b10b9",
+        "wan_2.2_timeline_5s_2s": "8c63941e5b244b21a6b5473afea1e2a7c438a6fbf6114f488df4fd36136166a8",
+        "wan_2.2_timeline_5s_3s": "dbfc717968a30a7edfe0cf1461708a528bc30e295acf1bdf8e0be757266faf09",
+        "wan_2.2_scene_10s": "1fdf84cd819dc66ca8f23fd7fc2c5e4dd452b2410e60513632888792abe5ef3f",
+        "wan_2.2_timeline_10s": "95989ed6d728aede0e8e811eb4e420e2f523f6a35e79a2155dbd87323bc4dad4",
+        "wan_2.2_scene_20s": "cfde6cefcb4e1e1af9c06004dfe5d877e75b41dde6bf8f63d395bd5db666d8c5",
+        "wan_2.2_timeline_20s": "3cf9e9399d9f94bbcfe34cb8d85ddc12dc0ea931c98f5d75a1f6ae918713e53b",
+        "ltx_2.3_i2v": "54d0a9b12e92b6eace281b066c6758d8ddc89fdb54479a215d5fa075c9e4dbbb",
+    },
+}
 
 
 def _file_hash(path: Path) -> str:
@@ -35,6 +74,16 @@ def _file_hash(path: Path) -> str:
         for chunk in iter(lambda: source.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _value_hash(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def _read_optional_object(path: Path) -> dict[str, Any] | None:
@@ -96,6 +145,25 @@ def _merge_missing(target: dict[str, Any], additions: dict[str, Any]) -> None:
             target[key] = copy.deepcopy(value)
         elif isinstance(target[key], dict) and isinstance(value, dict):
             _merge_missing(target[key], value)
+
+
+def _merge_bundled_update(
+    relative: Path,
+    current: dict[str, Any],
+    bundled: dict[str, Any],
+) -> None:
+    # New defaults remain additive. Prompt entries are upgraded individually
+    # only while they still match their 1.0.6 bundled value; local edits and
+    # retired keys remain untouched.
+    upgrades = _DEFAULT_VALUE_UPGRADES.get(relative, {})
+    for key, legacy_hash in upgrades.items():
+        if (
+            key in current
+            and key in bundled
+            and _value_hash(current[key]) == legacy_hash
+        ):
+            current[key] = copy.deepcopy(bundled[key])
+    _merge_missing(current, bundled)
 
 
 def _source_roots(repo_root: Path) -> list[Path]:
@@ -303,8 +371,8 @@ def materialize_defaults(repo_root: Path) -> None:
             if data is not None:
                 update_json_object(
                     target,
-                    lambda current, bundled_data=data: _merge_missing(
-                        current, bundled_data
+                    lambda current, bundled_data=data, rel=relative: (
+                        _merge_bundled_update(rel, current, bundled_data)
                     ),
                     private=relative == Path("config.json"),
                 )
@@ -314,19 +382,28 @@ def materialize_defaults(repo_root: Path) -> None:
             if _file_hash(target) == previous_hash:
                 data = _read_bundled_object(example)
                 if data is not None:
-                    write_json_object(
-                        target,
-                        data,
-                        private=relative == Path("config.json"),
-                    )
+                    if relative in _DEFAULT_VALUE_UPGRADES:
+                        update_json_object(
+                            target,
+                            lambda current, bundled_data=data, rel=relative: (
+                                _merge_bundled_update(rel, current, bundled_data)
+                            ),
+                            private=relative == Path("config.json"),
+                        )
+                    else:
+                        write_json_object(
+                            target,
+                            data,
+                            private=relative == Path("config.json"),
+                        )
                     updated += 1
             else:
                 data = _read_bundled_object(example)
                 if data is not None:
                     update_json_object(
                         target,
-                        lambda current, bundled_data=data: _merge_missing(
-                            current, bundled_data
+                        lambda current, bundled_data=data, rel=relative: (
+                            _merge_bundled_update(rel, current, bundled_data)
                         ),
                         private=relative == Path("config.json"),
                     )

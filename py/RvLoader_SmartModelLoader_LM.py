@@ -57,10 +57,12 @@ from ..core.sml.model_registry import (
 )
 from ..core.sml.tasks import (
     TASK_BY_NAME,
+    get_h3_mode,
     get_system_prompt,
     get_task_names,
     push_system_prompt_override,
     reset_system_prompt_override,
+    resolve_h3_input_mode,
 )
 
 _LOG_PREFIX = "SmartLLM Loader"
@@ -121,14 +123,97 @@ _FLEXIBLE_TASKS = {
     "Wan 2.2 Timeline 20s",
     "Wan 2.2 CN Atomic",
     "LTX 2.3 I2V",
-    "MiniMax H3 Scene 5s",
-    "MiniMax H3 Timeline 15s",
 }
 
 
 # ============================================================================
 # Image Utilities
 # ============================================================================
+
+
+def _flatten_image_frames(input_image):
+    # Preserve the encounter order of individual ComfyUI IMAGE frames.
+    frames = []
+
+    def _collect(item):
+        if isinstance(item, (list, tuple)):
+            for child in item:
+                _collect(child)
+        elif isinstance(item, torch.Tensor):
+            if item.dim() == 3:
+                frames.append(item)
+            elif item.dim() == 4:
+                frames.extend(item[index] for index in range(item.shape[0]))
+            else:
+                raise ValueError(
+                    "MiniMax H3 reference images must be 3D images or 4D batches."
+                )
+        elif item is not None:
+            raise ValueError("MiniMax H3 reference images must be ComfyUI IMAGE tensors.")
+
+    _collect(input_image)
+    return frames
+
+
+def _prepare_h3_reference_group(task_name, images):
+    # Treat all H3 image inputs as one ordered keyframe group, not mapped runs.
+    mode = get_h3_mode(task_name)
+    if mode is None:
+        return None, 0, None
+
+    frames = _flatten_image_frames(images)
+    image_count = len(frames)
+    resolved_mode = resolve_h3_input_mode(task_name, image_count)
+    if not frames:
+        return None, image_count, resolved_mode
+
+    try:
+        grouped = torch.stack(frames, dim=0)
+    except RuntimeError as error:
+        raise ValueError(
+            "MiniMax H3 reference images must have matching dimensions so their "
+            "first-to-last order can be preserved."
+        ) from error
+    return grouped, image_count, resolved_mode
+
+
+def _image_frame_count(input_image) -> int:
+    if input_image is None:
+        return 0
+    if isinstance(input_image, (list, tuple)):
+        return sum(_image_frame_count(item) for item in input_image)
+    if isinstance(input_image, torch.Tensor):
+        if input_image.dim() == 3:
+            return 1
+        if input_image.dim() == 4:
+            return int(input_image.shape[0])
+    return 1
+
+
+def _generation_frame_count(task_name: str, requested: int, image_count: int) -> int:
+    # frame_count is a video sampling control, never permission to drop an H3
+    # endpoint. Non-H3 behavior remains unchanged.
+    if get_h3_mode(task_name) is not None:
+        return max(requested, image_count)
+    return requested
+
+
+def _align_execution_inputs(user_prompts, flat_images):
+    num_runs = max(len(user_prompts), len(flat_images))
+    prompts_aligned = [
+        user_prompts[index if index < len(user_prompts) else -1]
+        for index in range(num_runs)
+    ]
+    if not flat_images:
+        images_aligned = [None] * num_runs
+    elif len(flat_images) == 1:
+        images_aligned = [flat_images[0]] * num_runs
+    else:
+        images_aligned = [
+            flat_images[index if index < len(flat_images) else -1]
+            for index in range(num_runs)
+        ]
+    return prompts_aligned, images_aligned
 
 
 def _get_temp_image_path(suffix: str = ".jpg") -> str:
@@ -214,16 +299,21 @@ def _build_vlm_prompt(task_name, user_prompt, input_image, *, family="Qwen"):
     # Backends now receive system + user separately — no more "\n\nAdditional context:"
     # marker hack and no parser ambiguity when the system text contains blank lines.
     has_text = bool(user_prompt and user_prompt.strip())
-    has_image = input_image is not None
+    h3_mode = get_h3_mode(task_name)
+    image_count = _image_frame_count(input_image)
+    if h3_mode is not None:
+        resolve_h3_input_mode(task_name, image_count)
+    has_image = image_count > 0
+    is_flexible = task_name in _FLEXIBLE_TASKS or h3_mode is not None
     is_text_only = (task_name in _TEXT_ONLY_TASKS and has_text) or (
-        task_name in _FLEXIBLE_TASKS and has_text and not has_image
+        is_flexible and has_text and not has_image
     )
 
     if is_text_only:
         # Backend supplies the system prompt via llm_mode (+ few-shot)
         return None, user_prompt, True
 
-    if task_name in _FLEXIBLE_TASKS and has_image and has_text:
+    if is_flexible and has_image and has_text:
         # Direct Chat / Custom / QA with image+text.
         # Prefer the task's system prompt (JSON entry, or wired override via ContextVar)
         # so user_prompt flows as the actual user message and few-shot training applies.
@@ -1525,31 +1615,43 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         else:
             user_prompts = [str(user_prompt)]
 
-        # Flatten/normalize input images to a list of tensors
-        flat_images = []
+        # Flatten/normalize input images to a list of tensors. H3 references are
+        # one ordered group (first frame, then last frame), even when ComfyUI
+        # supplies a batch/list that ordinary tasks would map across.
+        h3_mode = get_h3_mode(task)
+        h3_image_count = 0
+        h3_resolved_mode = None
+        if h3_mode is not None:
+            grouped, h3_image_count, h3_resolved_mode = _prepare_h3_reference_group(
+                task, images
+            )
+            flat_images = [grouped] if grouped is not None else []
+        else:
+            flat_images = []
 
-        def _process_image(item):
-            if isinstance(item, (list, tuple)):
-                for sub in item:
-                    _process_image(sub)
-            elif isinstance(item, torch.Tensor):
-                # If vision model is video task, keep the 4D batch as a single video input
-                is_video_task = (
-                    "video" in str(task).lower() or "timeline" in str(task).lower()
-                )
-                if item.dim() == 4:
-                    if is_video_task:
-                        flat_images.append(item)
-                    else:
-                        for i in range(item.shape[0]):
-                            flat_images.append(item[i : i + 1, ...])
-                elif item.dim() == 3:
-                    flat_images.append(item.unsqueeze(0))
-            elif item is not None:
-                flat_images.append(item)
+            def _process_image(item):
+                if isinstance(item, (list, tuple)):
+                    for sub in item:
+                        _process_image(sub)
+                elif isinstance(item, torch.Tensor):
+                    # Video tasks keep a 4D batch as a single video input.
+                    is_video_task = (
+                        "video" in str(task).lower()
+                        or "timeline" in str(task).lower()
+                    )
+                    if item.dim() == 4:
+                        if is_video_task:
+                            flat_images.append(item)
+                        else:
+                            for i in range(item.shape[0]):
+                                flat_images.append(item[i : i + 1, ...])
+                    elif item.dim() == 3:
+                        flat_images.append(item.unsqueeze(0))
+                elif item is not None:
+                    flat_images.append(item)
 
-        if images is not None:
-            _process_image(images)
+            if images is not None:
+                _process_image(images)
 
         # ── Use Advanced gate ──────────────────────────────────
         # When OFF, override sampling params with conservative defaults (matches
@@ -1629,6 +1731,11 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         model_family = _FAMILY_TO_EXEC.get(
             family_str, "VLM" if model_has_vision else "LLM (Text-Only)"
         )
+        if h3_image_count and not model_has_vision:
+            raise ValueError(
+                f"{task} {h3_resolved_mode} mode requires a vision-language model "
+                "to inspect its reference image(s)."
+            )
 
         # ── trust_remote_code policy ─────────────────────────────
         # Effective value = registry flag OR runtime chip override. Default False
@@ -1863,20 +1970,15 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                 f"Unknown family '{family_str}' → routing via {model_family}",
             )
 
-        # Align inputs for list execution
-        num_runs = max(len(user_prompts), len(flat_images))
-        prompts_aligned = [
-            user_prompts[i if i < len(user_prompts) else -1] for i in range(num_runs)
-        ]
-
-        if len(flat_images) == 0:
-            images_aligned = [None] * num_runs
-        elif len(flat_images) == 1:
-            images_aligned = [flat_images[0]] * num_runs
-        else:
-            images_aligned = [
-                flat_images[i if i < len(flat_images) else -1] for i in range(num_runs)
-            ]
+        # Align inputs for list execution. The H3 group occupies one list item,
+        # so one story produces one generation with both endpoints attached.
+        prompts_aligned, images_aligned = _align_execution_inputs(
+            user_prompts, flat_images
+        )
+        num_runs = len(prompts_aligned)
+        generation_frame_count = _generation_frame_count(
+            task, frame_count, h3_image_count
+        )
 
         results = []
         output_images = []
@@ -1917,7 +2019,7 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                         seed=seed,
                         repetition_penalty=repetition_penalty,
                         context_size=context_size,
-                        frame_count=frame_count,
+                        frame_count=generation_frame_count,
                         use_few_shot=use_few_shot_training,
                         min_p=min_p,
                         mirostat=mirostat_int,

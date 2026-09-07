@@ -50,11 +50,24 @@ text plus an image when the selected task supports one.
 
 Some generative tasks intentionally use `user_prompt` as their source material:
 
-- For a Wan, LTX, or MiniMax H3 image-to-video task, connect the starting image and describe
+- For a Wan or LTX image-to-video task, connect the starting image and describe
   the intended motion, action, dialogue, style, or camera behavior in
-  `user_prompt`. The task prompt tells the model how to format the result; the
-  image establishes visual details such as the person's appearance, while the
-  user text explains what should happen in the video.
+  `user_prompt`.
+- For MiniMax H3, choose the T2VA, I2VA, FL2VA, or L2VA timeline task matching
+  zero, one first-frame, one first-frame plus an optional last-frame reference,
+  or one last-frame image. The explicit FL2VA task accepts the first frame alone
+  because the downstream H3 encoder can enforce its separately connected last
+  frame; attaching both frames also lets the VLM reason about endpoint differences.
+  The compact **MiniMax H3 Scene 5s** task infers T2VA/I2VA/FL2VA from zero/one/two
+  images. You can request a shot count and views in natural language—for example,
+  “tell this in 3 shots: side, POV, then overhead”—or ask for a Tracking Shot by
+  naming the person or object to follow. For image-based H3 modes, the VLM uses
+  the actual reference image as visual ground truth. A one-image FL2VA response
+  briefly grounds the visible source state and then continues into the complete
+  requested shot timeline; it does not stop at a caption or add exhaustive
+  clothing, lighting, or scenery details. The image controls the subjects and
+  available scene; `user_prompt` controls what happens. The task does not invent
+  names, extra entities, or unrelated story events.
 - For **Song Lyrics**, enter a short story, theme, mood, or song concept in
   `user_prompt`. Genre, language, tempo, or structural preferences can be added
   when they matter. The result is a structured lyric sheet that can be copied
@@ -62,6 +75,12 @@ Some generative tasks intentionally use `user_prompt` as their source material:
 
 These cases do not require a custom `system_prompt`; selecting the task still
 loads the appropriate instructions automatically.
+
+H3 images connected here are visual references for the VLM that writes the
+prompt. They do not configure the downstream MiniMax H3 encoder. Connect the
+actual first/last keyframes to that encoder separately, in the order its workflow
+requires; the FL2VA prompt-writing task does not require its optional last-frame
+reference when the encoder already receives that frame.
 
 ### Open the mode chip bar
 

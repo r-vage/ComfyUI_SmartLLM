@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-09-07
+
+### Version: 1.0.7
+
+- **Feat**
+  - Replace the generic 15-second MiniMax H3 timeline with explicit T2VA, I2VA, FL2VA, and L2VA tasks, centralized mode metadata, exact reference-count validation, ordered endpoint grouping, natural-language shot counts, requested camera views, and named Tracking Shots.
+  - Expand neutral H3 few-shot coverage in both training profiles for every input mode, including ordered three-view stories and endpoint-convergent motion paths.
+
+- **Fix**
+  - Make explicit FL2VA accept either one first-frame prompt-writing image or an ordered first/last pair, use two-image pose/framing differences to plan subject and camera transitions, keep one-image output grounded in its source, and still land on the downstream encoder-supplied Picture 2.
+  - Require every H3 response to include its complete shot timeline, soundscape, and music fields so source-only or sound-only completions are explicitly invalid.
+  - Upgrade untouched bundled prompt entries individually during default migration while preserving customized values and any inert retired Timeline entry.
+  - Rebuild H3 instructions and both few-shot profiles around Wan-style input/output pairs so models use reference images as visual constraints, focus output on the requested action instead of re-captioning appearance, avoid invented names/entities/story events, and return only plain-text H3 fields without follow-up questions or Markdown sections.
+  - Generalize Wan, H3, and LTX role prompts to the neutral cinematic motion prompt writer occupation, remove model/vendor names from both few-shot profiles' instructional messages.
+
+- **Docs**
+  - Document H3 mode selection, image ordering, shot and camera controls, Tracking Shots, and the separation between SmartLLM prompt-writing references and downstream H3 encoder keyframes.
+
+- **Breaking**
+  - Remove **MiniMax H3 Timeline 15s** from task registration and bundled defaults without a compatibility alias; select one of the four explicit timeline modes instead.
+
+**Changed files:**
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `README.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/migration.py`
+- `core/sml/backend_transformers.py`
+- `core/sml/tasks.py`
+- `py/RvLoader_SmartModelLoader_LM.py`
+- `pyproject.toml`
+
 ## 2026-09-06
 
 ### Version: 1.0.6

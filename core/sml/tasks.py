@@ -39,6 +39,34 @@ class Task:
     )
 
 
+@dataclass(frozen=True)
+class H3Mode:
+    task_name: str
+    input_mode: str
+    duration_seconds: int
+    allowed_image_counts: tuple[int, ...]
+    timeline: bool
+
+    @property
+    def needs_image(self) -> bool:
+        return 0 not in self.allowed_image_counts
+
+    def resolve_input_mode(self, image_count: int) -> str:
+        if image_count not in self.allowed_image_counts:
+            expected = (
+                str(self.allowed_image_counts[0])
+                if len(self.allowed_image_counts) == 1
+                else "/".join(str(count) for count in self.allowed_image_counts)
+            )
+            noun = "image" if expected == "1" else "images"
+            raise ValueError(
+                f"{self.task_name} requires {expected} {noun}; received {image_count}."
+            )
+        if self.input_mode == "AUTO":
+            return {0: "T2VA", 1: "I2VA", 2: "FL2VA"}[image_count]
+        return self.input_mode
+
+
 # ============================================================================
 # Task Constants
 # ============================================================================
@@ -57,8 +85,37 @@ TASK_WAN_SCENE_20S = Task("Wan 2.2 Scene 20s", "custom", False)
 TASK_WAN_TIMELINE_20S = Task("Wan 2.2 Timeline 20s", "custom", False)
 TASK_WAN_CN_ATOMIC = Task("Wan 2.2 CN Atomic", "custom", False)
 TASK_LTX_23_I2V = Task("LTX 2.3 I2V", "custom", False)
-TASK_MINIMAX_H3_SCENE_5S = Task("MiniMax H3 Scene 5s", "custom", False)
-TASK_MINIMAX_H3_TIMELINE_15S = Task("MiniMax H3 Timeline 15s", "custom", False)
+
+H3_MODE_METADATA: dict[str, H3Mode] = {
+    mode.task_name: mode
+    for mode in (
+        H3Mode("MiniMax H3 Scene 5s", "AUTO", 5, (0, 1, 2), False),
+        H3Mode("MiniMax H3 T2VA Timeline 15s", "T2VA", 15, (0,), True),
+        H3Mode("MiniMax H3 I2VA Timeline 15s", "I2VA", 15, (1,), True),
+        H3Mode("MiniMax H3 FL2VA Timeline 15s", "FL2VA", 15, (1, 2), True),
+        H3Mode("MiniMax H3 L2VA Timeline 15s", "L2VA", 15, (1,), True),
+    )
+}
+
+
+def _h3_task(task_name: str) -> Task:
+    mode = H3_MODE_METADATA[task_name]
+    return Task(mode.task_name, "custom", mode.needs_image)
+
+
+TASK_MINIMAX_H3_SCENE_5S = _h3_task("MiniMax H3 Scene 5s")
+TASK_MINIMAX_H3_T2VA_TIMELINE_15S = _h3_task(
+    "MiniMax H3 T2VA Timeline 15s"
+)
+TASK_MINIMAX_H3_I2VA_TIMELINE_15S = _h3_task(
+    "MiniMax H3 I2VA Timeline 15s"
+)
+TASK_MINIMAX_H3_FL2VA_TIMELINE_15S = _h3_task(
+    "MiniMax H3 FL2VA Timeline 15s"
+)
+TASK_MINIMAX_H3_L2VA_TIMELINE_15S = _h3_task(
+    "MiniMax H3 L2VA Timeline 15s"
+)
 
 # ── Vision tasks (all families) ───────────────────────────────────
 TASK_SIMPLE_DESC = Task("Simple Description", "vision", True, "caption", "<CAPTION>")
@@ -174,7 +231,10 @@ ALL_TASKS: tuple[Task, ...] = (
     TASK_WAN_CN_ATOMIC,
     TASK_LTX_23_I2V,
     TASK_MINIMAX_H3_SCENE_5S,
-    TASK_MINIMAX_H3_TIMELINE_15S,
+    TASK_MINIMAX_H3_T2VA_TIMELINE_15S,
+    TASK_MINIMAX_H3_I2VA_TIMELINE_15S,
+    TASK_MINIMAX_H3_FL2VA_TIMELINE_15S,
+    TASK_MINIMAX_H3_L2VA_TIMELINE_15S,
     TASK_SIMPLE_DESC,
     TASK_DETAILED_DESC,
     TASK_ULTRA_DESC,
@@ -278,6 +338,17 @@ def is_florence_task(task_name: str) -> bool:
     # Check if a task has a Florence protocol mapping.
     task = TASK_BY_NAME.get(task_name)
     return task is not None and task.florence_id is not None
+
+
+def get_h3_mode(task_name: str) -> H3Mode | None:
+    # Return centralized MiniMax H3 input/timing metadata, if applicable.
+    return H3_MODE_METADATA.get(task_name)
+
+
+def resolve_h3_input_mode(task_name: str, image_count: int) -> str | None:
+    # Validate an H3 task's reference count and resolve Scene's inferred mode.
+    mode = get_h3_mode(task_name)
+    return mode.resolve_input_mode(image_count) if mode else None
 
 
 # ============================================================================
