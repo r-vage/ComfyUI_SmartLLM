@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-09-08
+
+### Version: 1.0.8
+
+- **Fix**
+  - Validate every MiniMax H3 response before returning it, retry an incomplete or audio-only response once with the same reference images and seed plus a focused format-recovery instruction, and deterministically reconstruct any still-missing fields from the requested action and usable generated audio instead of failing the workflow.
+  - Preserve structured motion fields containing chronological words such as `then` by restricting shared planning cleanup to genuine leading meta-reasoning, preventing valid H3 visual prompts from being reduced to audio-only output.
+  - Remove the redundant I2VA first-frame reference sentence from H3 prompts and generated output while continuing to send the image to the vision backend, and migrate untouched bundled prompt entries without overwriting customizations.
+
+- **Refactor**
+  - Rename the Smart LM Loader implementation module to `RvLoader_SmartLMLoader.py` to distinguish it from the separate Smart Model Loader project while preserving the class and serialized node ID.
+
+**Changed files:**
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `__init__.py`
+- `core/migration.py`
+- `core/sml/common.py`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
 ## 2026-09-07
 
 ### Version: 1.0.7

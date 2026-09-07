@@ -158,13 +158,12 @@ _RE_MARKER_LINE = re.compile(
 
 # Planning language that leaks from thinking models even after <think> removal
 _RE_PLANNING = re.compile(
-    r"(?is)\b("
-    r"i\s+(should|need|must|will|want|am\s+going\s+to|have\s+to)\b|"
+    r"(?is)^\s*(?:(?:okay|alright)[,:]?\s+)?(?:"
+    r"i\s+(?:should|need|must|will|want|am\s+going\s+to|have\s+to)\b|"
     r"let's\b|"
-    r"first\b|next\b|then\b|"
-    r"wait\b|"
     r"so\s+i\s+need\s+to\b|"
-    r"i\s+should\s+focus\s+on\b"
+    r"(?:first|next|then)[,:]\s+(?:i|we|the\s+(?:prompt|task|output|response))\b|"
+    r"wait[,.!]"
     r")"
 )
 
@@ -501,7 +500,7 @@ def _extract_from_json_wrapper(text: str) -> Optional[str]:
 
 
 def _strip_planning_paragraphs(text: str) -> str:
-    # Strip leading paragraphs that contain planning/reasoning language.
+    # Strip leading paragraphs that begin with planning/reasoning language.
     #
     # Thinking models sometimes leak planning text even after <think> removal:
     #   "I should focus on the lighting and composition.\n\nA balanced American shot..."

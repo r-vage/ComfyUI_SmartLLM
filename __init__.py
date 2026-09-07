@@ -83,7 +83,7 @@ class SmartLLMExtension(ComfyExtension):
             RvConversion_DetectionToBboxes,
         )
         from .py.RvLoader_SmartDetection import RvLoader_Detection
-        from .py.RvLoader_SmartModelLoader_LM import RvLoader_SmartModelLoader_LM
+        from .py.RvLoader_SmartLMLoader import RvLoader_SmartModelLoader_LM
 
         return [
             RvLoader_SmartModelLoader_LM,

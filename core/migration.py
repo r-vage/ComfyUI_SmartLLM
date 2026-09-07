@@ -29,7 +29,13 @@ _CONFIG_KEYS = {
 _ECLIPSE_CONFIG_KEYS = frozenset(_CONFIG_KEYS)
 _DEFAULT_VALUE_UPGRADES = {
     Path("config/system_prompts.json"): {
-        "MiniMax H3 Scene 5s": "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
+        "MiniMax H3 Scene 5s": (
+            "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
+            "0b7efa02451ded08444004329cfc3defa0b5fd9b558dd5c5493e068643d0caaa",
+        ),
+        "MiniMax H3 I2VA Timeline 15s": (
+            "a0db383415417dc60a310a0cf6bc7414af6502b8aa278bd63ff71c7e7685fe56",
+        ),
         "Wan 2.2 Scene 5s": "4e85319ae508d07c8df224dabb11c02cd686f88ef11557071d1d7c7aae48ff5f",
         "Wan 2.2 Timeline 5s": "955c2d2efd52d093fa57ff646652615a145b0e7b46d60f95909af2c52987d5e0",
         "Wan 2.2 Timeline 5s 2s": "88d1e095216abcd1acd1721f9b63f4e104f93711e261f5b7553b6f9b15d2c0d0",
@@ -42,7 +48,13 @@ _DEFAULT_VALUE_UPGRADES = {
         "LTX 2.3 I2V": "dbf829e66bc2232fb5dd542c069f804b81641e2add4cc3233c9d8def4b705eeb",
     },
     Path("config/llm_few_shot_training.json"): {
-        "minimax_h3_scene_5s": "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+        "minimax_h3_scene_5s": (
+            "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+            "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+        ),
+        "minimax_h3_i2va_timeline_15s": (
+            "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+        ),
         "wan_2.2_scene_5s": "bd734ddd2927506eea6208fc2eaf9f3aac38601853fac3e360c439b43a6b4712",
         "wan_2.2_timeline_5s": "74ce9c85afcb14c01dcc48ce682c8cd844aabd7cedb14c3e4c5644383df2579c",
         "wan_2.2_timeline_5s_2s": "8c63941e5b244b21a6b5473afea1e2a7c438a6fbf6114f488df4fd36136166a8",
@@ -54,7 +66,13 @@ _DEFAULT_VALUE_UPGRADES = {
         "ltx_2.3_i2v": "ddddcb90ebc4292ae937be87f8fe1d542e6ab55416fc777a56dd44208ea4a397",
     },
     Path("config/llm_few_shot_training_nsfw.json"): {
-        "minimax_h3_scene_5s": "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+        "minimax_h3_scene_5s": (
+            "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+            "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+        ),
+        "minimax_h3_i2va_timeline_15s": (
+            "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+        ),
         "wan_2.2_scene_5s": "1c61cde6ddc8c83ef910f2bee4fa6ce644cecd6f300a76267ba000e75e793f44",
         "wan_2.2_timeline_5s": "ce2153d353b6849013343f621fd7beb47a77a0ca32eff391eb5a97905a1b10b9",
         "wan_2.2_timeline_5s_2s": "8c63941e5b244b21a6b5473afea1e2a7c438a6fbf6114f488df4fd36136166a8",
@@ -153,14 +171,17 @@ def _merge_bundled_update(
     bundled: dict[str, Any],
 ) -> None:
     # New defaults remain additive. Prompt entries are upgraded individually
-    # only while they still match their 1.0.6 bundled value; local edits and
-    # retired keys remain untouched.
+    # only while they still match a recognized prior bundled value; local edits
+    # and retired keys remain untouched.
     upgrades = _DEFAULT_VALUE_UPGRADES.get(relative, {})
-    for key, legacy_hash in upgrades.items():
+    for key, legacy_hashes in upgrades.items():
+        recognized_hashes = (
+            (legacy_hashes,) if isinstance(legacy_hashes, str) else legacy_hashes
+        )
         if (
             key in current
             and key in bundled
-            and _value_hash(current[key]) == legacy_hash
+            and _value_hash(current[key]) in recognized_hashes
         ):
             current[key] = copy.deepcopy(bundled[key])
     _merge_missing(current, bundled)

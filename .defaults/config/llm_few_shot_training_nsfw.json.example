@@ -1849,7 +1849,7 @@
         ],
         [
             "instruction_template",
-            "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the required alignment line and three required plain-text fields, with no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
+            "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields, preceded by an endpoint-alignment line only in ordered first/last-frame mode, with no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
         ],
         [
             "examples",
@@ -1861,7 +1861,7 @@
                     ],
                     [
                         "content",
-                        "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the required alignment line and three required plain-text fields, with no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"A lighthouse keeper opens the storm shutters, braces against the wind, and raises a signal lamp toward a rescue boat. Use one fixed side view.\""
+                        "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields, preceded by an endpoint-alignment line only in ordered first/last-frame mode, with no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"A lighthouse keeper opens the storm shutters, braces against the wind, and raises a signal lamp toward a rescue boat. Use one fixed side view.\""
                     ]
                 ],
                 [
@@ -2009,7 +2009,7 @@
         ],
         [
             "instruction_template",
-            "Convert the input and exactly one first-frame image into a 15-second first-frame-guided motion timeline. Treat Picture 1 as the authoritative visual source and the input as the authoritative action source. Use Picture 1 to ground the requested action, but output motion rather than an image description. Never invent names, entities, or story events. Output only the exact first-frame alignment line and three required plain-text fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
+            "Convert the input and exactly one first-frame image into a 15-second first-frame-guided motion timeline. Treat Picture 1 as the authoritative visual source and the input as the authoritative action source. Use Picture 1 to ground the requested action, but output motion rather than an image description. Never invent names, entities, or story events. Output only the three required plain-text fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
         ],
         [
             "examples",
@@ -2021,7 +2021,7 @@
                     ],
                     [
                         "content",
-                        "Convert the input and exactly one first-frame image into a 15-second first-frame-guided motion timeline. Treat Picture 1 as the authoritative visual source and the input as the authoritative action source. Use Picture 1 to ground the requested action, but output motion rather than an image description. Never invent names, entities, or story events. Output only the exact first-frame alignment line and three required plain-text fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"Track the person shown in Picture 1 as they lift the kite already in their hands, walk outside, unfold it, and release it into the wind.\""
+                        "Convert the input and exactly one first-frame image into a 15-second first-frame-guided motion timeline. Treat Picture 1 as the authoritative visual source and the input as the authoritative action source. Use Picture 1 to ground the requested action, but output motion rather than an image description. Never invent names, entities, or story events. Output only the three required plain-text fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"Track the person shown in Picture 1 as they lift the kite already in their hands, walk outside, unfold it, and release it into the wind.\""
                     ]
                 ],
                 [
@@ -2031,7 +2031,7 @@
                     ],
                     [
                         "content",
-                        "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] A Tracking Shot follows the person as they tighten their grip on the visible kite, lift it, turn toward the visible doorway, walk forward, and push the door open. [Shot 2] At 00:08.000, the camera cuts to the same person stepping outside, unfolding both kite spars, raising the kite into the wind, and releasing it as the line pulls taut and the kite climbs.\n\noverall_soundscape: Footsteps cross the floor, the latch clicks, the door swings open, and wind snaps the kite fabric before the line begins to hum.\n\nnon_diegetic_music: A light marimba pulse gains soft strings as the kite rises."
+                        "integrated_multimodal_description: [Shot 1] A Tracking Shot follows the person as they tighten their grip on the visible kite, lift it, turn toward the visible doorway, walk forward, and push the door open. [Shot 2] At 00:08.000, the camera cuts to the same person stepping outside, unfolding both kite spars, raising the kite into the wind, and releasing it as the line pulls taut and the kite climbs.\n\noverall_soundscape: Footsteps cross the floor, the latch clicks, the door swings open, and wind snaps the kite fabric before the line begins to hum.\n\nnon_diegetic_music: A light marimba pulse gains soft strings as the kite rises."
                     ]
                 ]
             ]

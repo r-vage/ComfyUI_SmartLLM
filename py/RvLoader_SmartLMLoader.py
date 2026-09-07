@@ -1,4 +1,4 @@
-# RvLoader_SmartModelLoader - Smart Model Loader
+# RvLoader_SmartLMLoader - Smart LM Loader
 #
 # Registry-based model loader — no templates, no model_source, no manual path resolution.
 # The model registry (core/model_registry.py) provides the unified model list with backend
@@ -10,6 +10,7 @@
 import gc
 import os
 import random
+import re
 import time
 import uuid
 from datetime import datetime
@@ -124,6 +125,20 @@ _FLEXIBLE_TASKS = {
     "Wan 2.2 CN Atomic",
     "LTX 2.3 I2V",
 }
+
+_H3_REQUIRED_FIELDS = (
+    "integrated_multimodal_description",
+    "overall_soundscape",
+    "non_diegetic_music",
+)
+_H3_FIELD_PATTERN = re.compile(
+    r"(?im)^[ \t]*(integrated_multimodal_description|overall_soundscape|"
+    r"non_diegetic_music):[ \t]*"
+)
+_H3_I2VA_REFERENCE_LINE = (
+    "For the target video, at 0.00 seconds into the target video, "
+    "<Picture 1> (from [Shot 1]) is fully referenced."
+)
 
 
 # ============================================================================
@@ -334,6 +349,175 @@ def _build_vlm_prompt(task_name, user_prompt, input_image, *, family="Qwen"):
     # Image only, no user text
     base = get_system_prompt(task_name) or task_name or "Describe this image in detail."
     return base, "", False
+
+
+def _h3_output_contract_issue(task_name, output, image_count):
+    # Return a content-safe diagnostic when an H3 response is incomplete.
+    mode = get_h3_mode(task_name)
+    if mode is None:
+        return None
+
+    text = str(output or "").strip()
+    if not text:
+        return "empty response"
+
+    matches = list(_H3_FIELD_PATTERN.finditer(text))
+    labels = tuple(match.group(1).lower() for match in matches)
+    missing = [label for label in _H3_REQUIRED_FIELDS if label not in labels]
+    if missing:
+        return f"missing required field(s): {', '.join(missing)}"
+    if labels != _H3_REQUIRED_FIELDS:
+        return "required fields are duplicated or out of order"
+
+    bodies = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        bodies.append(text[match.end() : end].strip())
+    empty = [
+        label
+        for label, body in zip(_H3_REQUIRED_FIELDS, bodies, strict=True)
+        if not body
+    ]
+    if empty:
+        return f"empty required field(s): {', '.join(empty)}"
+    if not bodies[0].startswith("[Shot 1]"):
+        return "integrated_multimodal_description must begin with [Shot 1]"
+
+    resolved_mode = mode.resolve_input_mode(image_count)
+    first_line = text.splitlines()[0].strip()
+    if resolved_mode == "T2VA":
+        if not first_line.lower().startswith("integrated_multimodal_description:"):
+            return "T2VA output must begin with integrated_multimodal_description"
+    elif resolved_mode == "I2VA":
+        if not first_line.lower().startswith("integrated_multimodal_description:"):
+            return "I2VA output must begin with integrated_multimodal_description"
+    elif resolved_mode == "FL2VA":
+        if not first_line.startswith(
+            "How the reference pictures align with the target video — Picture 1 "
+        ):
+            return "FL2VA output is missing the required endpoint alignment line"
+    elif resolved_mode == "L2VA" and not first_line.startswith(
+        "How the reference pictures align with the target video — <Picture 1> "
+    ):
+        return "L2VA output is missing the required last-frame alignment line"
+    return None
+
+
+def _h3_recovery_system_prompt(task_name, image_count):
+    mode = get_h3_mode(task_name)
+    resolved_mode = mode.resolve_input_mode(image_count)
+    if resolved_mode in ("T2VA", "I2VA"):
+        opening = (
+            "Begin immediately with "
+            "integrated_multimodal_description: [Shot 1]"
+        )
+    elif resolved_mode == "FL2VA":
+        opening = (
+            "Begin with the required Picture 1/Picture 2 alignment line, then a blank "
+            "line, then integrated_multimodal_description: [Shot 1]"
+        )
+    else:
+        opening = (
+            "Begin with the required last-frame Picture 1 alignment line, then a "
+            "blank line, then integrated_multimodal_description: [Shot 1]"
+        )
+
+    base = get_system_prompt(task_name).rstrip()
+    recovery = (
+        "FORMAT RECOVERY (highest priority): Generate the complete response again "
+        "from the beginning. "
+        f"{opening}. Finish the full visible action or shot timeline before writing "
+        "overall_soundscape, then finish non_diegetic_music. Return all three fields "
+        "exactly once and in that order. Never begin with overall_soundscape or "
+        "non_diegetic_music, and never return audio fields without the complete "
+        "integrated_multimodal_description."
+    )
+    return f"{base}\n\n{recovery}" if base else recovery
+
+
+def _h3_field_bodies(output):
+    text = str(output or "").strip()
+    matches = list(_H3_FIELD_PATTERN.finditer(text))
+    bodies = {}
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        label = match.group(1).lower()
+        body = text[match.end() : end].strip()
+        if body and label not in bodies:
+            bodies[label] = body
+    return bodies
+
+
+def _normalize_h3_output(task_name, output, image_count):
+    # A first-frame image is already bound to time zero by I2VA itself, so keep
+    # that transport detail out of the motion prompt even when an older custom
+    # system prompt or model still emits the former reference sentence.
+    mode = get_h3_mode(task_name)
+    text = str(output or "").strip()
+    if mode is None or mode.resolve_input_mode(image_count) != "I2VA":
+        return text
+    if text.startswith(_H3_I2VA_REFERENCE_LINE):
+        return text[len(_H3_I2VA_REFERENCE_LINE) :].lstrip()
+    return text
+
+
+def _h3_fallback_output(task_name, user_prompt, image_count, *model_outputs):
+    # Build a valid, conservative prompt when the model omits required fields
+    # twice. Prefer any usable generated field, but always retain the requested
+    # action instead of failing the whole ComfyUI execution.
+    mode = get_h3_mode(task_name)
+    resolved_mode = mode.resolve_input_mode(image_count)
+    candidates = [_h3_field_bodies(output) for output in model_outputs]
+
+    def _first_body(label):
+        return next(
+            (fields[label] for fields in candidates if fields.get(label)),
+            None,
+        )
+
+    integrated = _first_body("integrated_multimodal_description")
+    if integrated:
+        if not integrated.startswith("[Shot 1]"):
+            integrated = f"[Shot 1] {integrated}"
+    else:
+        action = re.sub(r"\s+", " ", str(user_prompt or "")).strip()
+        if not action:
+            action = (
+                "The visible subject maintains the depicted scene while breathing, "
+                "blinking, and making a subtle natural posture shift."
+                if image_count
+                else "The requested scene unfolds as one continuous visible action."
+            )
+        integrated = f"[Shot 1] {action}"
+
+    shot_numbers = [
+        int(value) for value in re.findall(r"\[Shot (\d+)\]", integrated)
+    ]
+    final_shot = max(shot_numbers, default=1)
+    duration = f"{mode.duration_seconds:.2f}"
+    alignment = None
+    if resolved_mode == "FL2VA":
+        alignment = (
+            "How the reference pictures align with the target video — Picture 1 "
+            "(from Shot 1) aligns with the 0.00-second mark of the target video; "
+            f"Picture 2 (from Shot {final_shot}) aligns with the {duration}-second "
+            "mark of the target video."
+        )
+    elif resolved_mode == "L2VA":
+        alignment = (
+            "How the reference pictures align with the target video — <Picture 1> "
+            f"(from [Shot {final_shot}]) aligns with the {duration}-second mark of "
+            "the target video."
+        )
+
+    fields = [
+        f"integrated_multimodal_description: {integrated}",
+        f"overall_soundscape: {_first_body('overall_soundscape') or 'N/A'}",
+        f"non_diegetic_music: {_first_body('non_diegetic_music') or 'N/A'}",
+    ]
+    if alignment:
+        fields.insert(0, alignment)
+    return "\n\n".join(fields)
 
 
 # ============================================================================
@@ -760,6 +944,60 @@ def _generate_for_family(
     else:
         raise ValueError(f"Unknown model family: {model_family}")
 
+    return result, data
+
+
+def _generate_with_h3_recovery(**generation_kwargs):
+    # H3 prompts have a machine-readable field contract. Retry one malformed
+    # response with a stronger system instruction instead of silently returning
+    # an audio-only or otherwise incomplete prompt to the downstream video model.
+    task_name = generation_kwargs["task_name"]
+    mode = get_h3_mode(task_name)
+    if mode is None:
+        return _generate_for_family(**generation_kwargs)
+
+    image_count = _image_frame_count(generation_kwargs.get("input_image"))
+    initial_result, data = _generate_for_family(**generation_kwargs)
+    initial_result = _normalize_h3_output(task_name, initial_result, image_count)
+    issue = _h3_output_contract_issue(task_name, initial_result, image_count)
+    if issue is None:
+        return initial_result, data
+
+    log.warning(
+        _LOG_PREFIX,
+        f"Incomplete MiniMax H3 output ({issue}); retrying once",
+    )
+    retry_kwargs = dict(generation_kwargs)
+
+    recovery_prompt = _h3_recovery_system_prompt(task_name, image_count)
+    recovery_token = push_system_prompt_override(recovery_prompt)
+    try:
+        result, data = _generate_for_family(**retry_kwargs)
+        result = _normalize_h3_output(task_name, result, image_count)
+    finally:
+        reset_system_prompt_override(recovery_token)
+
+    issue = _h3_output_contract_issue(task_name, result, image_count)
+    if issue is None:
+        return result, data
+
+    log.warning(
+        _LOG_PREFIX,
+        f"MiniMax H3 corrective retry remained incomplete ({issue}); "
+        "returning a structured fallback",
+    )
+    result = _h3_fallback_output(
+        task_name,
+        generation_kwargs.get("user_prompt"),
+        image_count,
+        result,
+        initial_result,
+    )
+    if isinstance(data, dict):
+        data = dict(data)
+        data["h3_format_fallback"] = True
+    else:
+        data = {"h3_format_fallback": True}
     return result, data
 
 
@@ -2004,7 +2242,7 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                 # ── Generate (with system-prompt override if connected) ───
                 _override_token = push_system_prompt_override(system_prompt)
                 try:
-                    run_res, run_data = _generate_for_family(
+                    run_res, run_data = _generate_with_h3_recovery(
                         model_family=model_family,
                         instance=instance,
                         task_name=task,
