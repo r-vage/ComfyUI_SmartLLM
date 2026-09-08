@@ -273,9 +273,10 @@ Docker backends require Docker separately. See the
   data, legacy `ComfyUI_SmartLML` data, and bundled defaults. Migration never
   moves or deletes model artifacts, partial downloads, provenance sidecars,
   locks, or caches.
-- SmartLLM refuses to register beside an active legacy SmartLML provider or an
-  Eclipse release that still contains these nodes. Disable the older provider or
-  update Eclipse, then restart ComfyUI.
+- SmartLLM refuses to register beside an active legacy SmartLML provider or when
+  `/smartlml/...` routes are already registered. Inert SmartLLM source files left
+  in Eclipse by an overlay update do not block startup and remain available to
+  the user-data migration described above.
 - Optional Eclipse utilities can consume the unchanged SmartLLM IDs and image,
   text, mask, SEGS, and data outputs.
 

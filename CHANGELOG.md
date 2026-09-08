@@ -2,6 +2,27 @@
 
 ## 2026-09-08
 
+### Version: 1.0.9
+
+- **Feat**
+  - Show the running SmartLLM version in its ComfyUI settings and provide a loopback-only, explicitly confirmed update action that replaces tracked files with official `main`, preserves untracked user data, installs requirements, and reports the required restart.
+
+- **Fix**
+  - Allow SmartLLM to start when overlay updates leave inert extracted SmartLLM source files in Eclipse, while preserving Eclipse user-data migration and continuing to block active legacy packs or already-registered `/smartlml/...` routes.
+
+- **Docs**
+  - Clarify that startup conflict detection uses active providers and registered routes rather than stale Eclipse filenames.
+
+**Changed files:**
+- `core/compatibility.py`
+- `core/self_update.py`
+- `core/sml/server_endpoints.py`
+- `js/smartllm-self-update.js`
+- `README.md`
+- `pyproject.toml`
+
+## 2026-09-08
+
 ### Version: 1.0.8
 
 - **Fix**
