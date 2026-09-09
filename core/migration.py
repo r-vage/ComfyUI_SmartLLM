@@ -32,9 +32,19 @@ _DEFAULT_VALUE_UPGRADES = {
         "MiniMax H3 Scene 5s": (
             "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
             "0b7efa02451ded08444004329cfc3defa0b5fd9b558dd5c5493e068643d0caaa",
+            "3b64d6cbbbde03aec3da19823c6d7ac229f079ccc7fc1c4f7d33012eef57b4f1",
+        ),
+        "MiniMax H3 T2VA Timeline 15s": (
+            "4088c51d1f3c1aa8ca8d55ff67302e4b1ddd57abdd545961f64619d640d09a16",
         ),
         "MiniMax H3 I2VA Timeline 15s": (
             "a0db383415417dc60a310a0cf6bc7414af6502b8aa278bd63ff71c7e7685fe56",
+        ),
+        "MiniMax H3 FL2VA Timeline 15s": (
+            "2bcd528f236f2ef64ee26a75cfeff64080a9e891b2ba5333b32e7a652f784a62",
+        ),
+        "MiniMax H3 L2VA Timeline 15s": (
+            "118548380acf93fe8e2352246538b57ce1560ce4a835ca9b218dd33433899ce2",
         ),
         "Wan 2.2 Scene 5s": "4e85319ae508d07c8df224dabb11c02cd686f88ef11557071d1d7c7aae48ff5f",
         "Wan 2.2 Timeline 5s": "955c2d2efd52d093fa57ff646652615a145b0e7b46d60f95909af2c52987d5e0",
@@ -51,9 +61,16 @@ _DEFAULT_VALUE_UPGRADES = {
         "minimax_h3_scene_5s": (
             "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
             "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+            "7d00fd34e06d265888849950e7e6e54b1cacba78c4faebe56c02614e6fe8c121",
         ),
         "minimax_h3_i2va_timeline_15s": (
             "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+        ),
+        "minimax_h3_fl2va_timeline_15s": (
+            "2d793ea7f37a7c632ef8fe73e0ac6eac6759a9ec44e920be6709944a21411851",
+        ),
+        "minimax_h3_l2va_timeline_15s": (
+            "db70156ce675c9f0c5b91a8ae275275b761b726321e5950f756deccef3887940",
         ),
         "wan_2.2_scene_5s": "bd734ddd2927506eea6208fc2eaf9f3aac38601853fac3e360c439b43a6b4712",
         "wan_2.2_timeline_5s": "74ce9c85afcb14c01dcc48ce682c8cd844aabd7cedb14c3e4c5644383df2579c",
@@ -69,9 +86,16 @@ _DEFAULT_VALUE_UPGRADES = {
         "minimax_h3_scene_5s": (
             "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
             "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+            "7d00fd34e06d265888849950e7e6e54b1cacba78c4faebe56c02614e6fe8c121",
         ),
         "minimax_h3_i2va_timeline_15s": (
             "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+        ),
+        "minimax_h3_fl2va_timeline_15s": (
+            "2d793ea7f37a7c632ef8fe73e0ac6eac6759a9ec44e920be6709944a21411851",
+        ),
+        "minimax_h3_l2va_timeline_15s": (
+            "db70156ce675c9f0c5b91a8ae275275b761b726321e5950f756deccef3887940",
         ),
         "wan_2.2_scene_5s": "1c61cde6ddc8c83ef910f2bee4fa6ce644cecd6f300a76267ba000e75e793f44",
         "wan_2.2_timeline_5s": "ce2153d353b6849013343f621fd7beb47a77a0ca32eff391eb5a97905a1b10b9",

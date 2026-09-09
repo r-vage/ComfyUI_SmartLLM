@@ -2,6 +2,26 @@
 
 ## 2026-09-08
 
+### Version: 1.0.10
+
+- **Fix**
+  - Remove standalone reference-picture alignment metadata from every MiniMax H3 output mode, strip legacy/custom preambles before validation, and keep recovery plus fallback output limited to the three generator-ready H3 fields.
+  - Update bundled H3 prompts and few-shot examples to stop requesting alignment lines, while migrating untouched runtime defaults without replacing user customizations.
+
+- **Docs**
+  - Clarify that MiniMax H3 tasks return only the three required prompt fields.
+
+**Changed files:**
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/migration.py`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
+## 2026-09-08
+
 ### Version: 1.0.9
 
 - **Feat**

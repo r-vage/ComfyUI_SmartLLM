@@ -587,9 +587,9 @@ separately to the H3 encoder's own keyframe inputs and follow that workflow's
 ordering.
 
 The selected task's built-in system prompt and optional few-shot training produce
-only the generator-ready H3 alignment line (when required) and the three H3 fields
-as plain text. The complete shot timeline, soundscape, and music field are all
-mandatory; a response containing only image analysis or sound is incomplete.
+only the three generator-ready H3 fields as plain text. The complete shot timeline,
+soundscape, and music field are all mandatory; a response containing only image
+analysis or sound is incomplete.
 They do not ask follow-up questions or add Markdown character,
 clothing, camera, or scene sections. When an image-mode action is vague or missing,
 they animate only subtle motion supported by visible image content instead of

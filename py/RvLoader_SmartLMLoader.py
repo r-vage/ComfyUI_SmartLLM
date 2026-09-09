@@ -135,12 +135,6 @@ _H3_FIELD_PATTERN = re.compile(
     r"(?im)^[ \t]*(integrated_multimodal_description|overall_soundscape|"
     r"non_diegetic_music):[ \t]*"
 )
-_H3_I2VA_REFERENCE_LINE = (
-    "For the target video, at 0.00 seconds into the target video, "
-    "<Picture 1> (from [Shot 1]) is fully referenced."
-)
-
-
 # ============================================================================
 # Image Utilities
 # ============================================================================
@@ -383,44 +377,16 @@ def _h3_output_contract_issue(task_name, output, image_count):
     if not bodies[0].startswith("[Shot 1]"):
         return "integrated_multimodal_description must begin with [Shot 1]"
 
-    resolved_mode = mode.resolve_input_mode(image_count)
+    mode.resolve_input_mode(image_count)
     first_line = text.splitlines()[0].strip()
-    if resolved_mode == "T2VA":
-        if not first_line.lower().startswith("integrated_multimodal_description:"):
-            return "T2VA output must begin with integrated_multimodal_description"
-    elif resolved_mode == "I2VA":
-        if not first_line.lower().startswith("integrated_multimodal_description:"):
-            return "I2VA output must begin with integrated_multimodal_description"
-    elif resolved_mode == "FL2VA":
-        if not first_line.startswith(
-            "How the reference pictures align with the target video — Picture 1 "
-        ):
-            return "FL2VA output is missing the required endpoint alignment line"
-    elif resolved_mode == "L2VA" and not first_line.startswith(
-        "How the reference pictures align with the target video — <Picture 1> "
-    ):
-        return "L2VA output is missing the required last-frame alignment line"
+    if not first_line.lower().startswith("integrated_multimodal_description:"):
+        return "H3 output must begin with integrated_multimodal_description"
     return None
 
 
 def _h3_recovery_system_prompt(task_name, image_count):
-    mode = get_h3_mode(task_name)
-    resolved_mode = mode.resolve_input_mode(image_count)
-    if resolved_mode in ("T2VA", "I2VA"):
-        opening = (
-            "Begin immediately with "
-            "integrated_multimodal_description: [Shot 1]"
-        )
-    elif resolved_mode == "FL2VA":
-        opening = (
-            "Begin with the required Picture 1/Picture 2 alignment line, then a blank "
-            "line, then integrated_multimodal_description: [Shot 1]"
-        )
-    else:
-        opening = (
-            "Begin with the required last-frame Picture 1 alignment line, then a "
-            "blank line, then integrated_multimodal_description: [Shot 1]"
-        )
+    get_h3_mode(task_name).resolve_input_mode(image_count)
+    opening = "Begin immediately with integrated_multimodal_description: [Shot 1]"
 
     base = get_system_prompt(task_name).rstrip()
     recovery = (
@@ -449,15 +415,19 @@ def _h3_field_bodies(output):
 
 
 def _normalize_h3_output(task_name, output, image_count):
-    # A first-frame image is already bound to time zero by I2VA itself, so keep
-    # that transport detail out of the motion prompt even when an older custom
-    # system prompt or model still emits the former reference sentence.
+    # Reference-image placement is transport metadata, not part of the motion
+    # prompt. Drop any leading preamble from older/custom prompts or model output.
     mode = get_h3_mode(task_name)
     text = str(output or "").strip()
-    if mode is None or mode.resolve_input_mode(image_count) != "I2VA":
+    if mode is None:
         return text
-    if text.startswith(_H3_I2VA_REFERENCE_LINE):
-        return text[len(_H3_I2VA_REFERENCE_LINE) :].lstrip()
+    mode.resolve_input_mode(image_count)
+    first_field = _H3_FIELD_PATTERN.search(text)
+    if (
+        first_field is not None
+        and first_field.group(1).lower() == "integrated_multimodal_description"
+    ):
+        return text[first_field.start() :].lstrip()
     return text
 
 
@@ -466,7 +436,7 @@ def _h3_fallback_output(task_name, user_prompt, image_count, *model_outputs):
     # twice. Prefer any usable generated field, but always retain the requested
     # action instead of failing the whole ComfyUI execution.
     mode = get_h3_mode(task_name)
-    resolved_mode = mode.resolve_input_mode(image_count)
+    mode.resolve_input_mode(image_count)
     candidates = [_h3_field_bodies(output) for output in model_outputs]
 
     def _first_body(label):
@@ -490,33 +460,11 @@ def _h3_fallback_output(task_name, user_prompt, image_count, *model_outputs):
             )
         integrated = f"[Shot 1] {action}"
 
-    shot_numbers = [
-        int(value) for value in re.findall(r"\[Shot (\d+)\]", integrated)
-    ]
-    final_shot = max(shot_numbers, default=1)
-    duration = f"{mode.duration_seconds:.2f}"
-    alignment = None
-    if resolved_mode == "FL2VA":
-        alignment = (
-            "How the reference pictures align with the target video — Picture 1 "
-            "(from Shot 1) aligns with the 0.00-second mark of the target video; "
-            f"Picture 2 (from Shot {final_shot}) aligns with the {duration}-second "
-            "mark of the target video."
-        )
-    elif resolved_mode == "L2VA":
-        alignment = (
-            "How the reference pictures align with the target video — <Picture 1> "
-            f"(from [Shot {final_shot}]) aligns with the {duration}-second mark of "
-            "the target video."
-        )
-
     fields = [
         f"integrated_multimodal_description: {integrated}",
         f"overall_soundscape: {_first_body('overall_soundscape') or 'N/A'}",
         f"non_diegetic_music: {_first_body('non_diegetic_music') or 'N/A'}",
     ]
-    if alignment:
-        fields.insert(0, alignment)
     return "\n\n".join(fields)
 
 
