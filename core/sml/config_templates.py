@@ -525,6 +525,18 @@ def _load_few_shot_configs():
                 normalized[k] = v
             else:
                 normalized[k] = _normalize(v)
+        # Runtime fallback for installations that still contain only retired H3
+        # task keys. Startup migration normally materializes the canonical keys.
+        h3_legacy_keys = {
+            "minimax_h3_scene": "minimax_h3_scene_5s",
+            "minimax_h3_t2va_timeline": "minimax_h3_t2va_timeline_15s",
+            "minimax_h3_i2va_timeline": "minimax_h3_i2va_timeline_15s",
+            "minimax_h3_fl2va_timeline": "minimax_h3_fl2va_timeline_15s",
+            "minimax_h3_l2va_timeline": "minimax_h3_l2va_timeline_15s",
+        }
+        for canonical_key, legacy_key in h3_legacy_keys.items():
+            if canonical_key not in normalized and legacy_key in normalized:
+                normalized[canonical_key] = normalized[legacy_key]
         LLM_FEW_SHOT_EXAMPLES.clear()
         LLM_FEW_SHOT_EXAMPLES.update(normalized)
         try:

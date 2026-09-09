@@ -109,6 +109,120 @@ _DEFAULT_VALUE_UPGRADES = {
     },
 }
 
+_DEFAULT_KEY_RENAMES = {
+    Path("config/system_prompts.json"): {
+        "MiniMax H3 Scene": (
+            "MiniMax H3 Scene 5s",
+            (
+                "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
+                "0b7efa02451ded08444004329cfc3defa0b5fd9b558dd5c5493e068643d0caaa",
+                "3b64d6cbbbde03aec3da19823c6d7ac229f079ccc7fc1c4f7d33012eef57b4f1",
+                "b183658396a11a1fd5b945dec4ee5593b2466ba63cfc5664813bf6d319ef5553",
+            ),
+        ),
+        "MiniMax H3 T2VA Timeline": (
+            "MiniMax H3 T2VA Timeline 15s",
+            (
+                "4088c51d1f3c1aa8ca8d55ff67302e4b1ddd57abdd545961f64619d640d09a16",
+                "e73f1481789e886857611e630339c6257d91fd047ffa15ea81c7a3fb023d0f23",
+            ),
+        ),
+        "MiniMax H3 I2VA Timeline": (
+            "MiniMax H3 I2VA Timeline 15s",
+            (
+                "a0db383415417dc60a310a0cf6bc7414af6502b8aa278bd63ff71c7e7685fe56",
+                "4777b732afb13c79fd7c31894dfd16cd3676f9d3b40a9da1dd63888cbe7307b0",
+            ),
+        ),
+        "MiniMax H3 FL2VA Timeline": (
+            "MiniMax H3 FL2VA Timeline 15s",
+            (
+                "2bcd528f236f2ef64ee26a75cfeff64080a9e891b2ba5333b32e7a652f784a62",
+                "8c953cba33cdce074ba52bd8a2a9d76b10fd40736309726d424ad1acd890374e",
+            ),
+        ),
+        "MiniMax H3 L2VA Timeline": (
+            "MiniMax H3 L2VA Timeline 15s",
+            (
+                "118548380acf93fe8e2352246538b57ce1560ce4a835ca9b218dd33433899ce2",
+                "46635e63f79cbb235782b7def702f39c978d9d627ee348f5e22b81f89b744880",
+            ),
+        ),
+    },
+    Path("config/llm_few_shot_training.json"): {
+        "minimax_h3_scene": (
+            "minimax_h3_scene_5s",
+            (
+                "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+                "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+                "7d00fd34e06d265888849950e7e6e54b1cacba78c4faebe56c02614e6fe8c121",
+                "7096773b3774a2b94aa33d22251f7e29b147e7080a4f95806150f87f22c5ef2c",
+            ),
+        ),
+        "minimax_h3_t2va_timeline": (
+            "minimax_h3_t2va_timeline_15s",
+            ("41216e089117981b5ad06827042880f29c6c1aa7129f43ce9c8625871ca20ca6",),
+        ),
+        "minimax_h3_i2va_timeline": (
+            "minimax_h3_i2va_timeline_15s",
+            (
+                "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+                "89317f62af3daa87a8b239ac111d00d4296568543c776abc4a79c84c6454ec64",
+            ),
+        ),
+        "minimax_h3_fl2va_timeline": (
+            "minimax_h3_fl2va_timeline_15s",
+            (
+                "2d793ea7f37a7c632ef8fe73e0ac6eac6759a9ec44e920be6709944a21411851",
+                "ff00012d89f2593f378c54516d19cde408c1a9037d7b7d281dae7ff4243601df",
+            ),
+        ),
+        "minimax_h3_l2va_timeline": (
+            "minimax_h3_l2va_timeline_15s",
+            (
+                "db70156ce675c9f0c5b91a8ae275275b761b726321e5950f756deccef3887940",
+                "634a3c7ffd56365a31852a4241bcba52bc541b34d8135374280fa11af01a4998",
+            ),
+        ),
+    },
+    Path("config/llm_few_shot_training_nsfw.json"): {
+        "minimax_h3_scene": (
+            "minimax_h3_scene_5s",
+            (
+                "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
+                "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
+                "7d00fd34e06d265888849950e7e6e54b1cacba78c4faebe56c02614e6fe8c121",
+                "7096773b3774a2b94aa33d22251f7e29b147e7080a4f95806150f87f22c5ef2c",
+            ),
+        ),
+        "minimax_h3_t2va_timeline": (
+            "minimax_h3_t2va_timeline_15s",
+            ("41216e089117981b5ad06827042880f29c6c1aa7129f43ce9c8625871ca20ca6",),
+        ),
+        "minimax_h3_i2va_timeline": (
+            "minimax_h3_i2va_timeline_15s",
+            (
+                "b7cf284d40b783c691c093487cc4fc1bd0902122c0d027370e51b88a18ae6aef",
+                "89317f62af3daa87a8b239ac111d00d4296568543c776abc4a79c84c6454ec64",
+            ),
+        ),
+        "minimax_h3_fl2va_timeline": (
+            "minimax_h3_fl2va_timeline_15s",
+            (
+                "2d793ea7f37a7c632ef8fe73e0ac6eac6759a9ec44e920be6709944a21411851",
+                "ff00012d89f2593f378c54516d19cde408c1a9037d7b7d281dae7ff4243601df",
+            ),
+        ),
+        "minimax_h3_l2va_timeline": (
+            "minimax_h3_l2va_timeline_15s",
+            (
+                "db70156ce675c9f0c5b91a8ae275275b761b726321e5950f756deccef3887940",
+                "634a3c7ffd56365a31852a4241bcba52bc541b34d8135374280fa11af01a4998",
+            ),
+        ),
+    },
+}
+
 
 def _file_hash(path: Path) -> str:
     digest = hashlib.sha256()
@@ -197,6 +311,15 @@ def _merge_bundled_update(
     # New defaults remain additive. Prompt entries are upgraded individually
     # only while they still match a recognized prior bundled value; local edits
     # and retired keys remain untouched.
+    renames = _DEFAULT_KEY_RENAMES.get(relative, {})
+    for new_key, (old_key, legacy_hashes) in renames.items():
+        if new_key in current or new_key not in bundled or old_key not in current:
+            continue
+        if _value_hash(current[old_key]) in legacy_hashes:
+            current[new_key] = copy.deepcopy(bundled[new_key])
+        else:
+            current[new_key] = copy.deepcopy(current[old_key])
+
     upgrades = _DEFAULT_VALUE_UPGRADES.get(relative, {})
     for key, legacy_hashes in upgrades.items():
         recognized_hashes = (

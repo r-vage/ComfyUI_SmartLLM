@@ -2,6 +2,34 @@
 
 ## 2026-09-09
 
+### Version: 1.0.12
+
+- **Feat**
+  - Turn an empty `user_prompt` on the duration-neutral MiniMax H3 Scene task into an automatic one-shot story: create an original scene without images, ground it in one image, or connect two ordered endpoints, with synchronized sound, suitable music, and dialogue only when plausible.
+
+- **Compat**
+  - Remove `5s` and `15s` from all visible MiniMax H3 task names while preserving retired names as hidden backend and frontend aliases, migrating saved widget values, runtime system prompts, and customized few-shot entries without breaking older workflows or API prompts.
+  - Keep explicit timeline generation planned within MiniMax H3's 15-second maximum, and use the same ceiling when automatic story pacing needs a duration bound.
+
+- **Docs**
+  - Document duration-neutral H3 task selection, automatic empty-prompt storytelling, custom-system-prompt behavior, and the distinction between automatic story music and explicit no-music requests.
+
+**Changed files:**
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `README.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/migration.py`
+- `core/sml/config_templates.py`
+- `core/sml/tasks.py`
+- `js/smartllm-loader.js`
+- `js/smartllm-task-compat.js`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
+## 2026-09-09
+
 ### Version: 1.0.11
 
 - **Fix**

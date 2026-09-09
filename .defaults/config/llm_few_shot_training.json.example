@@ -1642,14 +1642,14 @@
             []
         ]
     ],
-    "minimax_h3_scene_5s": [
+    "minimax_h3_scene": [
         [
             "display_name",
-            "MiniMax H3 Scene 5s"
+            "MiniMax H3 Scene"
         ],
         [
             "instruction_template",
-            "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields with one blank line between fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
+            "Convert the input into one continuous cinematic motion prompt without fixed-duration assumptions. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields with one blank line between fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"{prompt}\""
         ],
         [
             "examples",
@@ -1661,7 +1661,7 @@
                     ],
                     [
                         "content",
-                        "Convert the input into one continuous 5-second cinematic motion prompt. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields with one blank line between fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"A lighthouse keeper opens the storm shutters, braces against the wind, and raises a signal lamp toward a rescue boat. Use one fixed side view.\""
+                        "Convert the input into one continuous cinematic motion prompt without fixed-duration assumptions. Use the attached image count to select zero-image, first-frame, or ordered first/last-frame mode. Treat images as the authoritative visual source and the input as the authoritative action source; use image contents to ground the requested action without restating appearance, clothing, lighting, or scenery. Never invent names, entities, or story events. Output only the three required plain-text fields with one blank line between fields; no Markdown or questions. Always return the complete shot timeline and all three required fields; never return only image analysis, source description, soundscape, or music. Input: \"A lighthouse keeper opens the storm shutters, braces against the wind, and raises a signal lamp toward a rescue boat. Use one fixed side view.\""
                     ]
                 ],
                 [
@@ -1767,10 +1767,10 @@
             ]
         ]
     ],
-    "minimax_h3_t2va_timeline_15s": [
+    "minimax_h3_t2va_timeline": [
         [
             "display_name",
-            "MiniMax H3 T2VA Timeline 15s"
+            "MiniMax H3 T2VA Timeline"
         ],
         [
             "instruction_template",
@@ -1802,10 +1802,10 @@
             ]
         ]
     ],
-    "minimax_h3_i2va_timeline_15s": [
+    "minimax_h3_i2va_timeline": [
         [
             "display_name",
-            "MiniMax H3 I2VA Timeline 15s"
+            "MiniMax H3 I2VA Timeline"
         ],
         [
             "instruction_template",
@@ -1837,10 +1837,10 @@
             ]
         ]
     ],
-    "minimax_h3_fl2va_timeline_15s": [
+    "minimax_h3_fl2va_timeline": [
         [
             "display_name",
-            "MiniMax H3 FL2VA Timeline 15s"
+            "MiniMax H3 FL2VA Timeline"
         ],
         [
             "instruction_template",
@@ -1872,10 +1872,10 @@
             ]
         ]
     ],
-    "minimax_h3_l2va_timeline_15s": [
+    "minimax_h3_l2va_timeline": [
         [
             "display_name",
-            "MiniMax H3 L2VA Timeline 15s"
+            "MiniMax H3 L2VA Timeline"
         ],
         [
             "instruction_template",

@@ -43,7 +43,7 @@ class Task:
 class H3Mode:
     task_name: str
     input_mode: str
-    duration_seconds: int
+    duration_seconds: int | None
     allowed_image_counts: tuple[int, ...]
     timeline: bool
 
@@ -86,14 +86,33 @@ TASK_WAN_TIMELINE_20S = Task("Wan 2.2 Timeline 20s", "custom", False)
 TASK_WAN_CN_ATOMIC = Task("Wan 2.2 CN Atomic", "custom", False)
 TASK_LTX_23_I2V = Task("LTX 2.3 I2V", "custom", False)
 
+MINIMAX_H3_SCENE_TASK = "MiniMax H3 Scene"
+LEGACY_TASK_ALIASES: dict[str, str] = {
+    "MiniMax H3 Scene 5s": MINIMAX_H3_SCENE_TASK,
+    "MiniMax H3 T2VA Timeline 15s": "MiniMax H3 T2VA Timeline",
+    "MiniMax H3 I2VA Timeline 15s": "MiniMax H3 I2VA Timeline",
+    "MiniMax H3 FL2VA Timeline 15s": "MiniMax H3 FL2VA Timeline",
+    "MiniMax H3 L2VA Timeline 15s": "MiniMax H3 L2VA Timeline",
+}
+
+
+def canonicalize_task_name(task_name: str) -> str:
+    # Keep retired serialized values executable without advertising them.
+    return LEGACY_TASK_ALIASES.get(task_name, task_name)
+
+
+def is_h3_scene_task(task_name: str) -> bool:
+    return canonicalize_task_name(task_name) == MINIMAX_H3_SCENE_TASK
+
+
 H3_MODE_METADATA: dict[str, H3Mode] = {
     mode.task_name: mode
     for mode in (
-        H3Mode("MiniMax H3 Scene 5s", "AUTO", 5, (0, 1, 2), False),
-        H3Mode("MiniMax H3 T2VA Timeline 15s", "T2VA", 15, (0,), True),
-        H3Mode("MiniMax H3 I2VA Timeline 15s", "I2VA", 15, (1,), True),
-        H3Mode("MiniMax H3 FL2VA Timeline 15s", "FL2VA", 15, (1, 2), True),
-        H3Mode("MiniMax H3 L2VA Timeline 15s", "L2VA", 15, (1,), True),
+        H3Mode(MINIMAX_H3_SCENE_TASK, "AUTO", None, (0, 1, 2), False),
+        H3Mode("MiniMax H3 T2VA Timeline", "T2VA", None, (0,), True),
+        H3Mode("MiniMax H3 I2VA Timeline", "I2VA", None, (1,), True),
+        H3Mode("MiniMax H3 FL2VA Timeline", "FL2VA", None, (1, 2), True),
+        H3Mode("MiniMax H3 L2VA Timeline", "L2VA", None, (1,), True),
     )
 }
 
@@ -106,25 +125,38 @@ _H3_MUSIC_INTENT_POLICY = (
     "unless the user also requests silence."
 )
 
+_H3_EMPTY_SCENE_STORY_POLICY = (
+    "EMPTY-PROMPT STORY MODE (highest priority): The user prompt is blank and no "
+    "custom system prompt is connected, so create an original, coherent cinematic "
+    "mini-story as one continuous [Shot 1] with no timestamps or cuts. With zero "
+    "images, invent the setting, characters, visible action, and story progression. "
+    "With one image, ground the story in Picture 1 and preserve its visible subjects, "
+    "appearance, objects, composition, environment, style, and lighting. With two "
+    "ordered images, preserve both endpoints and create a natural visible progression "
+    "from Picture 1 to Picture 2. This story-mode instruction overrides ordinary "
+    "prohibitions on inventing goals, events, and dialogue only for this blank-input "
+    "case; attached images remain authoritative. Add plausible dialogue only when the "
+    "scene naturally supports speech, using speaker IDs such as (S1) and "
+    "<d>[Language] dialogue</d>; do not force dialogue into silent scenes. Always "
+    "plan pacing within MiniMax H3's maximum 15-second range when a duration bound "
+    "is useful, without adding timestamps or extra shots. Always "
+    "provide synchronized ambience and action sounds in overall_soundscape and a "
+    "scene-appropriate background score in non_diegetic_music. "
+    "non_diegetic_music must never be N/A in this mode. Return only the three required "
+    "fields in their required order."
+)
+
 
 def _h3_task(task_name: str) -> Task:
     mode = H3_MODE_METADATA[task_name]
     return Task(mode.task_name, "custom", mode.needs_image)
 
 
-TASK_MINIMAX_H3_SCENE_5S = _h3_task("MiniMax H3 Scene 5s")
-TASK_MINIMAX_H3_T2VA_TIMELINE_15S = _h3_task(
-    "MiniMax H3 T2VA Timeline 15s"
-)
-TASK_MINIMAX_H3_I2VA_TIMELINE_15S = _h3_task(
-    "MiniMax H3 I2VA Timeline 15s"
-)
-TASK_MINIMAX_H3_FL2VA_TIMELINE_15S = _h3_task(
-    "MiniMax H3 FL2VA Timeline 15s"
-)
-TASK_MINIMAX_H3_L2VA_TIMELINE_15S = _h3_task(
-    "MiniMax H3 L2VA Timeline 15s"
-)
+TASK_MINIMAX_H3_SCENE = _h3_task(MINIMAX_H3_SCENE_TASK)
+TASK_MINIMAX_H3_T2VA_TIMELINE = _h3_task("MiniMax H3 T2VA Timeline")
+TASK_MINIMAX_H3_I2VA_TIMELINE = _h3_task("MiniMax H3 I2VA Timeline")
+TASK_MINIMAX_H3_FL2VA_TIMELINE = _h3_task("MiniMax H3 FL2VA Timeline")
+TASK_MINIMAX_H3_L2VA_TIMELINE = _h3_task("MiniMax H3 L2VA Timeline")
 
 # ── Vision tasks (all families) ───────────────────────────────────
 TASK_SIMPLE_DESC = Task("Simple Description", "vision", True, "caption", "<CAPTION>")
@@ -239,11 +271,11 @@ ALL_TASKS: tuple[Task, ...] = (
     TASK_WAN_TIMELINE_20S,
     TASK_WAN_CN_ATOMIC,
     TASK_LTX_23_I2V,
-    TASK_MINIMAX_H3_SCENE_5S,
-    TASK_MINIMAX_H3_T2VA_TIMELINE_15S,
-    TASK_MINIMAX_H3_I2VA_TIMELINE_15S,
-    TASK_MINIMAX_H3_FL2VA_TIMELINE_15S,
-    TASK_MINIMAX_H3_L2VA_TIMELINE_15S,
+    TASK_MINIMAX_H3_SCENE,
+    TASK_MINIMAX_H3_T2VA_TIMELINE,
+    TASK_MINIMAX_H3_I2VA_TIMELINE,
+    TASK_MINIMAX_H3_FL2VA_TIMELINE,
+    TASK_MINIMAX_H3_L2VA_TIMELINE,
     TASK_SIMPLE_DESC,
     TASK_DETAILED_DESC,
     TASK_ULTRA_DESC,
@@ -351,7 +383,7 @@ def is_florence_task(task_name: str) -> bool:
 
 def get_h3_mode(task_name: str) -> H3Mode | None:
     # Return centralized MiniMax H3 input/timing metadata, if applicable.
-    return H3_MODE_METADATA.get(task_name)
+    return H3_MODE_METADATA.get(canonicalize_task_name(task_name))
 
 
 def resolve_h3_input_mode(task_name: str, image_count: int) -> str | None:
@@ -400,10 +432,20 @@ def get_system_prompt(task_name: str) -> str:
     # Get the system prompt for a task.
     # If a per-execution override is active (set via push_system_prompt_override),
     # return the override instead. Falls back to empty string if not found.
+    task_name = canonicalize_task_name(task_name)
     prompt = _system_prompt_override.get()
     if not prompt:
         prompts = _load_system_prompts()
         prompt = prompts.get(task_name, "")
+        if not prompt:
+            prompt = next(
+                (
+                    prompts[legacy_name]
+                    for legacy_name, canonical_name in LEGACY_TASK_ALIASES.items()
+                    if canonical_name == task_name and prompts.get(legacy_name)
+                ),
+                "",
+            )
     if task_name in H3_MODE_METADATA and _H3_MUSIC_INTENT_POLICY not in prompt:
         prompt = (
             f"{prompt.rstrip()}\n\n{_H3_MUSIC_INTENT_POLICY}"
@@ -411,6 +453,18 @@ def get_system_prompt(task_name: str) -> str:
             else _H3_MUSIC_INTENT_POLICY
         )
     return prompt
+
+
+def get_h3_story_system_prompt(task_name: str) -> str:
+    # Add the creative blank-input branch without changing ordinary H3 prompting.
+    if not is_h3_scene_task(task_name):
+        return get_system_prompt(task_name)
+    base = get_system_prompt(task_name).rstrip()
+    return (
+        f"{base}\n\n{_H3_EMPTY_SCENE_STORY_POLICY}"
+        if base
+        else _H3_EMPTY_SCENE_STORY_POLICY
+    )
 
 
 def get_all_system_prompts() -> Dict[str, str]:

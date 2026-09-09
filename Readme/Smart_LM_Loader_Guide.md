@@ -177,8 +177,8 @@ that task's built-in instructions, so the provided text must be self-contained:
 include the model's role, the complete objective, any rules or constraints, and
 the required output format. In this mode, `user_prompt` is the corresponding user
 message or source material. Leave `system_prompt` disconnected when you want to
-use a predefined task such as Detailed Description, Wan/LTX/MiniMax H3 prompting, or Song
-Lyrics.
+use a predefined task such as Detailed Description, Wan/LTX/MiniMax H3 prompting,
+or Song Lyrics.
 
 ### Outputs
 
@@ -397,11 +397,11 @@ ONNX Runtime for SmilingWolf WD14 tagger models.
 | **Wan 2.2 Timeline 20s** | Optional | Four timeline paragraphs (5s each), each with per-second markers |
 | **Wan 2.2 CN Atomic** | Optional | Chinese Wan prompt using explicit initial state, ordered physical actions, and final state |
 | **LTX 2.3 I2V** | Recommended | One image-to-video paragraph combining the reference image with requested motion, sound, dialogue, and style |
-| **MiniMax H3 Scene 5s** | 0–2 | One continuous 5-second scene; zero/one/two images select T2VA/I2VA/FL2VA |
-| **MiniMax H3 T2VA Timeline 15s** | None | Text-only 15-second timeline |
-| **MiniMax H3 I2VA Timeline 15s** | First | Timeline beginning exactly on one first-frame image |
-| **MiniMax H3 FL2VA Timeline 15s** | First; optional last | Timeline starting from the first reference and landing on the encoder-supplied last frame at 15.00 seconds; an optional second reference lets the VLM inspect both endpoints |
-| **MiniMax H3 L2VA Timeline 15s** | Last | Timeline converging on one last-frame image at 15.00 seconds |
+| **MiniMax H3 Scene** | 0–2 | One continuous duration-neutral scene; zero/one/two images select T2VA/I2VA/FL2VA, and an empty prompt enables automatic storytelling |
+| **MiniMax H3 T2VA Timeline** | None | Text-only shot timeline planned within H3's maximum 15-second range |
+| **MiniMax H3 I2VA Timeline** | First | Timeline beginning exactly on one first-frame image |
+| **MiniMax H3 FL2VA Timeline** | First; optional last | Timeline starting from the first reference and landing on the encoder-supplied last frame; an optional second reference lets the VLM inspect both endpoints |
+| **MiniMax H3 L2VA Timeline** | Last | Timeline converging on one last-frame image |
 
 ### Vision Tasks (all VLM families)
 
@@ -563,9 +563,9 @@ Docker backends are configured in `docker_config.json`:
 ### Audio-Video Prompt (Wan, LTX, or MiniMax H3)
 
 1. Select a text-capable model for text-to-video, or a vision-language model when images are required
-2. Choose the Wan/LTX task, the compact **MiniMax H3 Scene 5s**, or the explicit H3 T2VA/I2VA/FL2VA/L2VA timeline task matching your inputs
+2. Choose the Wan/LTX task, the compact **MiniMax H3 Scene**, or the explicit H3 T2VA/I2VA/FL2VA/L2VA timeline task matching your inputs. H3 task labels are duration-neutral; timeline prompts use the model's 15-second maximum as their planning range unless you request a shorter duration
 3. For H3, connect no image for T2VA, one first-frame image for I2VA, one first-frame image or an ordered first/last pair for explicit FL2VA, or one last-frame image for L2VA. The Scene task still infers T2VA/I2VA/FL2VA from zero/one/two images. Other count mismatches fail before generation
-4. In `user_prompt`, describe the action, dialogue, sound, pacing, and any camera behavior that should occur. Natural language can set a feasible one-to-four shot count, such as “tell this in 3 shots.” Requested views are honored in order, so “side view, then POV, then overhead” maps those views to Shots 1–3. “Track Mara” or “track the blue cart” becomes a Tracking Shot naming that target
+4. For **MiniMax H3 Scene**, either enter a short description of what should happen or leave `user_prompt` empty for an automatically generated story. With an empty prompt, zero images create an original story, one image grounds the story in that frame, and two images create a natural progression between the endpoints. SmartLLM adds scene-appropriate music and sound, with dialogue only when plausible. For a supplied prompt, describe the action, dialogue, sound, pacing, and any camera behavior that should occur. Natural language can set a feasible one-to-four shot count for timeline tasks, such as “tell this in 3 shots.” Requested views are honored in order, so “side view, then POV, then overhead” maps those views to Shots 1–3. “Track Mara” or “track the blue cart” becomes a Tracking Shot naming that target
 5. Queue Prompt
 6. Send the generated text to the corresponding video workflow
 
@@ -578,7 +578,8 @@ differences; with only Picture 1 it briefly describes the visible source state,
 continues into the complete `user_prompt` action timeline, avoids inventing unseen
 final-frame details, and still ends exactly on encoder-supplied Picture 2.
 Without an explicit shot count, timeline tasks create two to four purposeful,
-duration-safe shots and do not invent extra camera angles.
+duration-safe shots within the maximum 15-second planning range and do not invent
+extra camera angles.
 
 The images attached to Smart LM Loader are prompt-writing references: they let
 the VLM inspect available keyframes while composing text. They are not keyframe
@@ -590,14 +591,20 @@ The selected task's built-in system prompt and optional few-shot training produc
 only the three generator-ready H3 fields as plain text. The complete shot timeline,
 soundscape, and music field are all mandatory; a response containing only image
 analysis or sound is incomplete.
-An explicit request for no background music, no score, or no soundtrack produces
-`non_diegetic_music: N/A`. This does not remove dialogue, ambience, or action
-sounds from `overall_soundscape` unless silence is also requested.
-They do not ask follow-up questions or add Markdown character,
-clothing, camera, or scene sections. When an image-mode action is vague or missing,
-they animate only subtle motion supported by visible image content instead of
-inventing a new plot. Disable the **Training** chip when a small-context model
-needs a shorter prompt.
+For nonempty prompts, an explicit request for no background music, no score, or
+no soundtrack produces `non_diegetic_music: N/A`. This does not remove dialogue,
+ambience, or action sounds from `overall_soundscape` unless silence is also
+requested.
+An empty **MiniMax H3 Scene** prompt instead activates story mode and always creates
+an appropriate background score. Connecting a nonblank custom `system_prompt`
+disables automatic story mode and uses the custom instructions. Workflows saved
+with former H3 `5s` or `15s` labels are migrated automatically, although those
+retired labels are no longer shown in the task dropdown.
+The H3 tasks do not ask follow-up questions or add Markdown character, clothing,
+camera, or scene sections. When an image-mode action is vague or missing, they
+animate only subtle motion supported by visible image content instead of
+inventing a new plot; the explicit empty Scene story mode is the exception.
+Disable the **Training** chip when a small-context model needs a shorter prompt.
 
 ### Song Lyrics
 

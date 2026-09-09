@@ -58,20 +58,27 @@ Some generative tasks intentionally use `user_prompt` as their source material:
   or one last-frame image. The explicit FL2VA task accepts the first frame alone
   because the downstream H3 encoder can enforce its separately connected last
   frame; attaching both frames also lets the VLM reason about endpoint differences.
-  The compact **MiniMax H3 Scene 5s** task infers T2VA/I2VA/FL2VA from zero/one/two
-  images. You can request a shot count and views in natural language—for example,
+  The compact, duration-neutral **MiniMax H3 Scene** task infers T2VA/I2VA/FL2VA
+  from zero/one/two images. Leave `user_prompt` empty to have SmartLLM create an
+  original one-shot story, grounding it in one image or connecting two endpoint
+  images when supplied. This automatic story mode adds suitable sound and music,
+  and uses dialogue only when the scene supports it. You can instead provide a
+  short description of what should happen and SmartLLM generates the required H3
+  format. You can request a shot count and views in natural language—for example,
   “tell this in 3 shots: side, POV, then overhead”—or ask for a Tracking Shot by
   naming the person or object to follow. For image-based H3 modes, the VLM uses
   the actual reference image as visual ground truth. A one-image FL2VA response
   briefly grounds the visible source state and then continues into the complete
   requested shot timeline; it does not stop at a caption or add exhaustive
   clothing, lighting, or scenery details. The image controls the subjects and
-  available scene; `user_prompt` controls what happens. The task does not invent
-  names, extra entities, or unrelated story events. Every H3 task returns the
-  same three generator-ready fields. If you request no background music, no
+  available scene; a nonempty `user_prompt` controls what happens and prevents
+  unrelated invention. Every H3 task returns the same three generator-ready
+  fields. If you request no background music, no
   score, or no soundtrack, `non_diegetic_music` is set to `N/A` while dialogue,
   ambience, and action sounds remain in `overall_soundscape` unless you also
-  request silence.
+  request silence. Timeline task labels are duration-neutral; their prompt writer
+  uses H3's 15-second maximum as its shot-planning range unless `user_prompt`
+  asks for a shorter duration.
 - For **Song Lyrics**, enter a short story, theme, mood, or song concept in
   `user_prompt`. Genre, language, tempo, or structural preferences can be added
   when they matter. The result is a structured lyric sheet that can be copied

@@ -58,9 +58,12 @@ from ..core.sml.model_registry import (
 )
 from ..core.sml.tasks import (
     TASK_BY_NAME,
+    canonicalize_task_name,
     get_h3_mode,
+    get_h3_story_system_prompt,
     get_system_prompt,
     get_task_names,
+    is_h3_scene_task,
     push_system_prompt_override,
     reset_system_prompt_override,
     resolve_h3_input_mode,
@@ -135,6 +138,16 @@ _H3_FIELD_PATTERN = re.compile(
     r"(?im)^[ \t]*(integrated_multimodal_description|overall_soundscape|"
     r"non_diegetic_music):[ \t]*"
 )
+
+
+def _should_use_h3_story_mode(task_name, user_prompt, system_prompt):
+    return (
+        is_h3_scene_task(task_name)
+        and not str(user_prompt or "").strip()
+        and not str(system_prompt or "").strip()
+    )
+
+
 # ============================================================================
 # Image Utilities
 # ============================================================================
@@ -345,7 +358,7 @@ def _build_vlm_prompt(task_name, user_prompt, input_image, *, family="Qwen"):
     return base, "", False
 
 
-def _h3_output_contract_issue(task_name, output, image_count):
+def _h3_output_contract_issue(task_name, output, image_count, *, story_mode=False):
     # Return a content-safe diagnostic when an H3 response is incomplete.
     mode = get_h3_mode(task_name)
     if mode is None:
@@ -381,6 +394,17 @@ def _h3_output_contract_issue(task_name, output, image_count):
     first_line = text.splitlines()[0].strip()
     if not first_line.lower().startswith("integrated_multimodal_description:"):
         return "H3 output must begin with integrated_multimodal_description"
+    if story_mode:
+        music = bodies[2].strip().casefold().rstrip(".! ")
+        if music in {
+            "n/a",
+            "na",
+            "none",
+            "no music",
+            "no background music",
+            "silence",
+        }:
+            return "non_diegetic_music must describe background music in story mode"
     return None
 
 
@@ -431,7 +455,13 @@ def _normalize_h3_output(task_name, output, image_count):
     return text
 
 
-def _h3_fallback_output(task_name, user_prompt, image_count, *model_outputs):
+def _h3_fallback_output(
+    task_name,
+    user_prompt,
+    image_count,
+    *model_outputs,
+    story_mode=False,
+):
     # Build a valid, conservative prompt when the model omits required fields
     # twice. Prefer any usable generated field, but always retain the requested
     # action instead of failing the whole ComfyUI execution.
@@ -452,18 +482,44 @@ def _h3_fallback_output(task_name, user_prompt, image_count, *model_outputs):
     else:
         action = re.sub(r"\s+", " ", str(user_prompt or "")).strip()
         if not action:
-            action = (
-                "The visible subject maintains the depicted scene while breathing, "
-                "blinking, and making a subtle natural posture shift."
-                if image_count
-                else "The requested scene unfolds as one continuous visible action."
-            )
+            if story_mode and image_count == 0:
+                action = (
+                    "An original traveler enters a rain-swept station, discovers a "
+                    "forgotten letter beneath a bench, and looks toward the departing "
+                    "train as its final carriage disappears into the night."
+                )
+            elif story_mode and image_count == 2:
+                action = (
+                    "The depicted subjects and environment move through a natural "
+                    "story progression from the first composition into the final "
+                    "composition."
+                )
+            elif image_count:
+                action = (
+                    "The visible subject maintains the depicted scene while breathing, "
+                    "blinking, and making a subtle natural posture shift."
+                )
+            else:
+                action = "The requested scene unfolds as one continuous visible action."
         integrated = f"[Shot 1] {action}"
+
+    soundscape = _first_body("overall_soundscape")
+    if story_mode and (
+        not soundscape or soundscape.strip().casefold() in {"n/a", "na"}
+    ):
+        soundscape = "Scene-appropriate ambience and synchronized action sounds."
+    music = _first_body("non_diegetic_music")
+    if story_mode and (
+        not music
+        or music.strip().casefold().rstrip(".! ")
+        in {"n/a", "na", "none", "no music", "no background music", "silence"}
+    ):
+        music = "An original cinematic score shaped to the scene's mood and pacing."
 
     fields = [
         f"integrated_multimodal_description: {integrated}",
-        f"overall_soundscape: {_first_body('overall_soundscape') or 'N/A'}",
-        f"non_diegetic_music: {_first_body('non_diegetic_music') or 'N/A'}",
+        f"overall_soundscape: {soundscape or 'N/A'}",
+        f"non_diegetic_music: {music or 'N/A'}",
     ]
     return "\n\n".join(fields)
 
@@ -899,54 +955,68 @@ def _generate_with_h3_recovery(**generation_kwargs):
     # H3 prompts have a machine-readable field contract. Retry one malformed
     # response with a stronger system instruction instead of silently returning
     # an audio-only or otherwise incomplete prompt to the downstream video model.
-    task_name = generation_kwargs["task_name"]
+    story_mode = bool(generation_kwargs.pop("h3_story_mode", False))
+    task_name = canonicalize_task_name(generation_kwargs["task_name"])
+    generation_kwargs["task_name"] = task_name
     mode = get_h3_mode(task_name)
     if mode is None:
         return _generate_for_family(**generation_kwargs)
 
-    image_count = _image_frame_count(generation_kwargs.get("input_image"))
-    initial_result, data = _generate_for_family(**generation_kwargs)
-    initial_result = _normalize_h3_output(task_name, initial_result, image_count)
-    issue = _h3_output_contract_issue(task_name, initial_result, image_count)
-    if issue is None:
-        return initial_result, data
-
-    log.warning(
-        _LOG_PREFIX,
-        f"Incomplete MiniMax H3 output ({issue}); retrying once",
-    )
-    retry_kwargs = dict(generation_kwargs)
-
-    recovery_prompt = _h3_recovery_system_prompt(task_name, image_count)
-    recovery_token = push_system_prompt_override(recovery_prompt)
+    story_token = None
+    if story_mode:
+        story_token = push_system_prompt_override(get_h3_story_system_prompt(task_name))
     try:
-        result, data = _generate_for_family(**retry_kwargs)
-        result = _normalize_h3_output(task_name, result, image_count)
-    finally:
-        reset_system_prompt_override(recovery_token)
+        image_count = _image_frame_count(generation_kwargs.get("input_image"))
+        initial_result, data = _generate_for_family(**generation_kwargs)
+        initial_result = _normalize_h3_output(task_name, initial_result, image_count)
+        issue = _h3_output_contract_issue(
+            task_name, initial_result, image_count, story_mode=story_mode
+        )
+        if issue is None:
+            return initial_result, data
 
-    issue = _h3_output_contract_issue(task_name, result, image_count)
-    if issue is None:
+        log.warning(
+            _LOG_PREFIX,
+            f"Incomplete MiniMax H3 output ({issue}); retrying once",
+        )
+        retry_kwargs = dict(generation_kwargs)
+
+        recovery_prompt = _h3_recovery_system_prompt(task_name, image_count)
+        recovery_token = push_system_prompt_override(recovery_prompt)
+        try:
+            result, data = _generate_for_family(**retry_kwargs)
+            result = _normalize_h3_output(task_name, result, image_count)
+        finally:
+            reset_system_prompt_override(recovery_token)
+
+        issue = _h3_output_contract_issue(
+            task_name, result, image_count, story_mode=story_mode
+        )
+        if issue is None:
+            return result, data
+
+        log.warning(
+            _LOG_PREFIX,
+            f"MiniMax H3 corrective retry remained incomplete ({issue}); "
+            "returning a structured fallback",
+        )
+        result = _h3_fallback_output(
+            task_name,
+            generation_kwargs.get("user_prompt"),
+            image_count,
+            result,
+            initial_result,
+            story_mode=story_mode,
+        )
+        if isinstance(data, dict):
+            data = dict(data)
+            data["h3_format_fallback"] = True
+        else:
+            data = {"h3_format_fallback": True}
         return result, data
-
-    log.warning(
-        _LOG_PREFIX,
-        f"MiniMax H3 corrective retry remained incomplete ({issue}); "
-        "returning a structured fallback",
-    )
-    result = _h3_fallback_output(
-        task_name,
-        generation_kwargs.get("user_prompt"),
-        image_count,
-        result,
-        initial_result,
-    )
-    if isinstance(data, dict):
-        data = dict(data)
-        data["h3_format_fallback"] = True
-    else:
-        data = {"h3_format_fallback": True}
-    return result, data
+    finally:
+        if story_token is not None:
+            reset_system_prompt_override(story_token)
 
 
 # ============================================================================
@@ -1632,6 +1702,26 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         )
 
     @classmethod
+    def validate_inputs(cls, task, task_2, task_3, task_4):
+        # Explicit validation keeps retired serialized task values accepted while
+        # the schema advertises only current choices.
+        valid_tasks = set(get_task_names(has_vision=True, include_all_families=True))
+        for input_name, raw_value, allow_none in (
+            ("task", task, False),
+            ("task_2", task_2, True),
+            ("task_3", task_3, True),
+            ("task_4", task_4, True),
+        ):
+            values = raw_value if isinstance(raw_value, (list, tuple)) else [raw_value]
+            for value in values:
+                normalized = canonicalize_task_name(str(value))
+                if allow_none and normalized == "None":
+                    continue
+                if normalized not in valid_tasks:
+                    return f"Unknown SmartLLM task for {input_name}: {value!r}"
+        return True
+
+    @classmethod
     def fingerprint_inputs(cls, **kwargs):
         seed = kwargs.get("seed", 0)
         if seed in (-1, -2, -3):
@@ -1758,10 +1848,10 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
 
         model = _unwrap_scalar(model, "")
         quantization = _unwrap_scalar(quantization, "")
-        task = _unwrap_scalar(task, "")
-        task_2 = _unwrap_scalar(task_2, "None")
-        task_3 = _unwrap_scalar(task_3, "None")
-        task_4 = _unwrap_scalar(task_4, "None")
+        task = canonicalize_task_name(_unwrap_scalar(task, ""))
+        task_2 = canonicalize_task_name(_unwrap_scalar(task_2, "None"))
+        task_3 = canonicalize_task_name(_unwrap_scalar(task_3, "None"))
+        task_4 = canonicalize_task_name(_unwrap_scalar(task_4, "None"))
         max_tokens = _unwrap_scalar(max_tokens, 2048)
         context_size = _unwrap_scalar(context_size, 8192)
         attention_mode = _unwrap_scalar(attention_mode, "auto")
@@ -1792,6 +1882,7 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         repeat_last_n = _unwrap_scalar(repeat_last_n, 64)
         stop_sequences = _unwrap_scalar(stop_sequences, "")
         system_prompt = _unwrap_scalar(system_prompt, None)
+        has_custom_system_prompt = bool(system_prompt and str(system_prompt).strip())
 
         # Normalize user_prompt to a list of strings
         if user_prompt is None:
@@ -2213,6 +2304,11 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                         mirostat_tau=mirostat_tau,
                         repeat_last_n=repeat_last_n,
                         stop_sequences=stop_list,
+                        h3_story_mode=_should_use_h3_story_mode(
+                            task,
+                            single_prompt,
+                            system_prompt if has_custom_system_prompt else None,
+                        ),
                     )
                 finally:
                     reset_system_prompt_override(_override_token)

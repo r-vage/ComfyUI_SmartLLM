@@ -20,6 +20,7 @@ import {
     findWorkflowNode,
 } from './smartllm-seed-utils.js';
 import { onSmartLLMRegistryChanged } from './smartllm-registry-events.js';
+import { migrateLegacyTaskWidget } from './smartllm-task-compat.js';
 const NODE_NAME = "Smart LM Loader [Eclipse]";
 const LEGACY_NODE_NAMES = new Set([
     "Smart Language Model Loader v2 [SmartLML]",
@@ -209,6 +210,7 @@ function mapTaskSeparators(rawTasks) {
 
 function updateTaskDropdown(widget, rawTasks, defaultValue = null) {
     if (!widget) return;
+    migrateLegacyTaskWidget(widget);
     const display = mapTaskSeparators(rawTasks);
     widget.options.values = display;
     const selectable = display.filter(v => !isSeparatorEntry(v));
@@ -375,7 +377,10 @@ const smartLLMLoaderExtension = {
                     const noneTextTasks = ['None', ...mapTaskSeparators(textTasks)];
                     for (const tName of ['task_2', 'task_3', 'task_4']) {
                         const tw = getWidget(tName);
-                        if (tw) updateDropdown(tw, noneTextTasks, 'None');
+                        if (tw) {
+                            migrateLegacyTaskWidget(tw);
+                            updateDropdown(tw, noneTextTasks, 'None');
+                        }
                     }
                 }
                 updateAllVisibility();
