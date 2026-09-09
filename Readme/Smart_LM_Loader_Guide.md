@@ -590,6 +590,9 @@ The selected task's built-in system prompt and optional few-shot training produc
 only the three generator-ready H3 fields as plain text. The complete shot timeline,
 soundscape, and music field are all mandatory; a response containing only image
 analysis or sound is incomplete.
+An explicit request for no background music, no score, or no soundtrack produces
+`non_diegetic_music: N/A`. This does not remove dialogue, ambience, or action
+sounds from `overall_soundscape` unless silence is also requested.
 They do not ask follow-up questions or add Markdown character,
 clothing, camera, or scene sections. When an image-mode action is vague or missing,
 they animate only subtle motion supported by visible image content instead of

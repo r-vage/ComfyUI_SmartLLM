@@ -67,7 +67,11 @@ Some generative tasks intentionally use `user_prompt` as their source material:
   requested shot timeline; it does not stop at a caption or add exhaustive
   clothing, lighting, or scenery details. The image controls the subjects and
   available scene; `user_prompt` controls what happens. The task does not invent
-  names, extra entities, or unrelated story events.
+  names, extra entities, or unrelated story events. Every H3 task returns the
+  same three generator-ready fields. If you request no background music, no
+  score, or no soundtrack, `non_diegetic_music` is set to `N/A` while dialogue,
+  ambience, and action sounds remain in `overall_soundscape` unless you also
+  request silence.
 - For **Song Lyrics**, enter a short story, theme, mood, or song concept in
   `user_prompt`. Genre, language, tempo, or structural preferences can be added
   when they matter. The result is a structured lyric sheet that can be copied

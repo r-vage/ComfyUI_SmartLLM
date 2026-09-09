@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-09-09
+
+### Version: 1.0.11
+
+- **Fix**
+  - Apply a shared MiniMax H3 music-intent policy across every backend and task mode so explicit requests for no background music, score, or soundtrack produce `non_diegetic_music: N/A` without removing scene sound.
+
+- **Docs**
+  - Document the common three-field H3 output contract and the distinction between non-diegetic music and dialogue, ambience, or action sounds.
+
+**Changed files:**
+- `README.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/sml/tasks.py`
+- `pyproject.toml`
+
 ## 2026-09-08
 
 ### Version: 1.0.10

@@ -97,6 +97,15 @@ H3_MODE_METADATA: dict[str, H3Mode] = {
     )
 }
 
+_H3_MUSIC_INTENT_POLICY = (
+    "MUSIC INTENT (mandatory): Treat the user's music request as authoritative. "
+    "If the user requests no background music, no non-diegetic music, no score, "
+    "no soundtrack, or equivalent, return exactly non_diegetic_music: N/A. Never "
+    "invent music or move it into overall_soundscape. Keep requested or "
+    "scene-grounded ambience, dialogue, and action sounds in overall_soundscape "
+    "unless the user also requests silence."
+)
+
 
 def _h3_task(task_name: str) -> Task:
     mode = H3_MODE_METADATA[task_name]
@@ -391,11 +400,17 @@ def get_system_prompt(task_name: str) -> str:
     # Get the system prompt for a task.
     # If a per-execution override is active (set via push_system_prompt_override),
     # return the override instead. Falls back to empty string if not found.
-    override = _system_prompt_override.get()
-    if override:
-        return override
-    prompts = _load_system_prompts()
-    return prompts.get(task_name, "")
+    prompt = _system_prompt_override.get()
+    if not prompt:
+        prompts = _load_system_prompts()
+        prompt = prompts.get(task_name, "")
+    if task_name in H3_MODE_METADATA and _H3_MUSIC_INTENT_POLICY not in prompt:
+        prompt = (
+            f"{prompt.rstrip()}\n\n{_H3_MUSIC_INTENT_POLICY}"
+            if prompt
+            else _H3_MUSIC_INTENT_POLICY
+        )
+    return prompt
 
 
 def get_all_system_prompts() -> Dict[str, str]:
