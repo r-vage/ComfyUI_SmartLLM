@@ -881,9 +881,14 @@ class SMLRegistryEndpoints:
                 # when multiple SmartLLM node extensions trigger refresh together.
                 return web.json_response({"success": True, "debounced": True})
             _last_registry_reload_ts = now
-            from .model_registry import invalidate_cache, load_all_registries
+            from .model_registry import (
+                invalidate_cache,
+                invalidate_yolo_cache,
+                load_all_registries,
+            )
 
             invalidate_cache()
+            invalidate_yolo_cache()
             load_all_registries(force=True)
             return web.json_response({"success": True})
 

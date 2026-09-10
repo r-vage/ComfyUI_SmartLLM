@@ -57,7 +57,7 @@ _BACKEND_FILES = {
     "wd14": ("wd14_models.json", ""),
 }
 
-SUPPORTED_REGISTRY_BACKENDS = tuple(_BACKEND_FILES)
+SUPPORTED_REGISTRY_BACKENDS = (*_BACKEND_FILES, "yolo")
 
 # Registry family string → ModelFamily enum
 FAMILY_MAP: Dict[str, ModelFamily] = {
@@ -309,7 +309,13 @@ class RegistryValidationError(ValueError):
     pass
 
 
-def _display_name_for(backend: str, name: str) -> str:
+def _display_name_for(
+    backend: str,
+    name: str,
+    detection_type: str | None = None,
+) -> str:
+    if backend == "yolo":
+        return f"{name} [{detection_type or 'bbox'}]"
     suffix = _BACKEND_FILES[backend][1]
     return f"{name}{suffix}"
 
@@ -347,6 +353,16 @@ def _normalized_repo_id(value: object, backend: str, local_only: bool) -> str:
         ):
             raise RegistryValidationError("repo_id is not a valid Ollama model ID")
         return repo_id
+    if backend == "yolo" and repo_id.startswith(("http://", "https://")):
+        match = re.fullmatch(
+            r"https://huggingface\.co/([^/]+/[^/]+)/resolve/[^/]+/.+",
+            repo_id,
+        )
+        if not match:
+            raise RegistryValidationError(
+                "YOLO repository URL must be an HTTPS Hugging Face resolve URL"
+            )
+        repo_id = match.group(1)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*", repo_id):
         raise RegistryValidationError("repo_id must use canonical 'owner/model' form")
     return repo_id
@@ -456,7 +472,7 @@ def normalize_registry_candidate(
     if not isinstance(backend_value, str):
         raise RegistryValidationError("backend must be a string")
     backend = backend_value.strip().lower()
-    if backend not in _BACKEND_FILES:
+    if backend not in SUPPORTED_REGISTRY_BACKENDS:
         raise RegistryValidationError("backend is not supported by Smart LM")
 
     name = _normalized_model_name(candidate.get("name"))
@@ -469,17 +485,18 @@ def normalize_registry_candidate(
         )
     repo_id = _normalized_repo_id(candidate.get("repo_id", ""), backend, local_only)
 
-    family_value = candidate.get("family", "WD14" if backend == "wd14" else "")
+    forced_family = {"wd14": "WD14", "yolo": "YOLO"}.get(backend)
+    family_value = candidate.get("family", forced_family or "")
     if not isinstance(family_value, str) or family_value not in FAMILY_MAP:
         raise RegistryValidationError("family is not supported by Smart LM")
     family = family_value
-    if backend == "wd14":
-        family = "WD14"
+    if forced_family:
+        family = forced_family
 
-    has_vision = candidate.get("has_vision", backend == "wd14")
+    has_vision = candidate.get("has_vision", backend in {"wd14", "yolo"})
     if not isinstance(has_vision, bool):
         raise RegistryValidationError("has_vision must be a boolean")
-    if backend == "wd14":
+    if backend in {"wd14", "yolo"}:
         has_vision = True
 
     normalized: dict[str, Any] = {
@@ -496,7 +513,32 @@ def normalize_registry_candidate(
             raise RegistryValidationError("description must be at most 2000 characters")
         normalized["description"] = description.strip()
 
-    if local_only:
+    if backend == "yolo":
+        filename = _normalized_repository_filename(
+            candidate.get("filename"), "filename"
+        )
+        if "/" in filename or not filename.lower().endswith(".pt"):
+            raise RegistryValidationError(
+                "YOLO filename must be a .pt filename without directories"
+            )
+        detection_type = candidate.get("detection_type", "bbox")
+        if detection_type not in {"bbox", "segm"}:
+            raise RegistryValidationError("detection_type must be bbox or segm")
+        normalized["filename"] = filename
+        normalized["detection_type"] = detection_type
+
+    if local_only and backend == "yolo":
+        from .backend_yolo import resolve_yolo_model_path
+
+        if resolve_yolo_model_path(normalized["filename"]) is None:
+            raise RegistryValidationError(
+                "Local-only YOLO file was not found in the configured "
+                "ultralytics/bbox or ultralytics/segm folders"
+            )
+        normalized["local_only"] = True
+        normalized["available"] = True
+        normalized["trust_remote_code"] = False
+    elif local_only:
         from .model_acquisition import validate_local_registry_path
 
         normalized["local_only"] = True
@@ -540,6 +582,8 @@ def normalize_registry_candidate(
         trust_remote_code = candidate.get("trust_remote_code", False)
         if not isinstance(trust_remote_code, bool):
             raise RegistryValidationError("trust_remote_code must be a boolean")
+        if backend == "yolo":
+            trust_remote_code = False
         if trust_remote_code:
             revision = normalized.get("revision", "")
             if not isinstance(revision, str) or not re.fullmatch(
@@ -617,13 +661,19 @@ def inspect_registry_candidate(
         candidate, resolve_revision=should_resolve
     )
     return {
-        "display_name": _display_name_for(normalized["backend"], normalized["name"]),
+        "display_name": _display_name_for(
+            normalized["backend"],
+            normalized["name"],
+            normalized.get("detection_type"),
+        ),
         **normalized,
     }
 
 
 def _entry_storage(entry: dict[str, Any]) -> tuple[str, Path]:
     backend = entry["backend"]
+    if backend == "yolo":
+        return "curated", _REGISTRY_DIR / _YOLO_REGISTRY_FILE
     origin = entry.get("_registry_origin", "curated")
     if origin == "user":
         return "user", _REGISTRY_DIR / "user_models.json"
@@ -659,7 +709,11 @@ def upsert_registry_entry(
             f"A registry entry already uses display name '{new_display_name}'"
         )
 
-    if original_entry is None:
+    if backend == "yolo":
+        origin = "curated"
+        path = _REGISTRY_DIR / _YOLO_REGISTRY_FILE
+        old_name = original_entry["name"] if original_entry is not None else None
+    elif original_entry is None:
         origin = "user"
         path = _REGISTRY_DIR / "user_models.json"
         old_name = None
@@ -672,6 +726,12 @@ def upsert_registry_entry(
         for key, value in inspected.items()
         if key not in {"display_name", "name", "backend"}
     }
+    if backend == "yolo":
+        persisted["_registry_origin"] = (
+            original_entry.get("_registry_origin", "curated")
+            if original_entry is not None
+            else "user"
+        )
 
     def apply_update(data: dict[str, Any]) -> None:
         target = data
@@ -697,8 +757,12 @@ def upsert_registry_entry(
         target[name] = copy.deepcopy(persisted)
 
     update_json_object(path, apply_update, default={})
-    invalidate_cache()
-    load_all_registries(force=True)
+    if backend == "yolo":
+        invalidate_yolo_cache()
+        _load_yolo_registry(force=True)
+    else:
+        invalidate_cache()
+        load_all_registries(force=True)
     result = get_model_entry_for_api(new_display_name)
     if result is None:
         raise RuntimeError("Registry entry was committed but could not be reloaded")
@@ -708,7 +772,7 @@ def upsert_registry_entry(
 def remove_registry_entry(display_name: str) -> dict[str, Any]:
     # Remove one entry from its owning runtime registry file only.
     entry = get_model_entry(display_name)
-    if entry is None or entry.get("backend") == "yolo":
+    if entry is None:
         raise RegistryValidationError("Registry entry was not found")
     origin, path = _entry_storage(entry)
     backend = entry["backend"]
@@ -730,8 +794,12 @@ def remove_registry_entry(display_name: str) -> dict[str, Any]:
     update_json_object(path, apply_remove)
     if not removed:
         raise RegistryValidationError("Registry entry no longer exists on disk")
-    invalidate_cache()
-    load_all_registries(force=True)
+    if backend == "yolo":
+        invalidate_yolo_cache()
+        _load_yolo_registry(force=True)
+    else:
+        invalidate_cache()
+        load_all_registries(force=True)
     return {
         "success": True,
         "display_name": display_name,
@@ -847,7 +915,7 @@ def get_model_list_for_api() -> List[Dict[str, Any]]:
     # Build the model list payload for the /smartlml/model_list endpoint.
     # Returns a list of dicts with display_name, backend, family, has_vision,
     # and quantizations (if any).
-    registry = load_all_registries()
+    registry = {**load_all_registries(), **_load_yolo_registry()}
     result = []
     for display_name in sorted(registry.keys()):
         entry = registry[display_name]
@@ -911,7 +979,7 @@ def get_model_entry_for_api(display_name: str) -> Optional[Dict[str, Any]]:
         }
     )
     result["origin"] = entry.get("_registry_origin", "curated")
-    result["editable"] = entry.get("backend") != "yolo"
+    result["editable"] = True
     result["can_download"] = not entry.get("local_only", False)
     if entry.get("backend") in ("gguf", "llamacpp"):
         result["quantizations"] = get_quantizations(display_name)
@@ -1035,6 +1103,9 @@ def _load_yolo_registry(force: bool = False) -> Dict[str, Dict[str, Any]]:
             registry[display_name] = {
                 "backend": "yolo",
                 "name": name,
+                "_registry_origin": (
+                    "local" if entry.get("local_only", False) else "curated"
+                ),
                 **resolved_entry,
             }
 
@@ -1156,10 +1227,12 @@ def get_detection_model_list() -> List[str]:
         if family in detection_families and entry.get("has_vision", False):
             vlm_models.append(name)
 
-    # YOLO models (only available ones)
+    # Curated YOLO entries stay selectable so choosing a missing model can enter
+    # the verified acquisition path. Local-only discoveries remain selectable
+    # only while their artifact is present.
     yolo_models: List[str] = []
     for name, entry in yolo_registry.items():
-        if entry.get("available", False):
+        if not entry.get("local_only", False) or entry.get("available", False):
             yolo_models.append(name)
 
     # Build grouped list with separators

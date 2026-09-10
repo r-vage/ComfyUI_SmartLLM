@@ -4,8 +4,8 @@ import { emitSmartLLMRegistryChanged } from './smartllm-registry-events.js';
 const COMMAND_ID = 'SmartLLM.LMRegistry.Open';
 const SIDEBAR_TAB_ID = 'smartllm-lm-registry';
 const CSS_ID = 'smartllm-registry-manager-css';
-const BACKENDS = ['transformers', 'gguf', 'llamacpp', 'ollama', 'vllm', 'vllm_native', 'sglang', 'wd14'];
-const FAMILIES = ['Qwen', 'Mistral', 'Florence', 'LLaVA', 'LLM_TEXT', 'VLM', 'WD14'];
+const BACKENDS = ['transformers', 'gguf', 'llamacpp', 'ollama', 'vllm', 'vllm_native', 'sglang', 'wd14', 'yolo'];
+const FAMILIES = ['Qwen', 'Mistral', 'Florence', 'LLaVA', 'LLM_TEXT', 'VLM', 'WD14', 'YOLO'];
 const SERVER_QUANTIZATIONS = {
     vllm: ['auto', 'fp8', 'awq', 'gptq', 'bitsandbytes'],
     vllm_native: ['auto', 'fp8', 'awq', 'gptq', 'bitsandbytes', 'squeezellm'],
@@ -192,6 +192,8 @@ class RegistryManager {
         this.inputs.local_path = field(this.form, 'local_path', 'Local path below configured LLM folder', 'text', { wide: true, placeholder: 'ModelFolder or ModelFolder/model.gguf' });
         this.inputs.has_vision = field(this.form, 'has_vision', 'Vision-capable model', 'checkbox');
         this.inputs.trust_remote_code = field(this.form, 'trust_remote_code', 'Allow pinned repository Python code', 'checkbox');
+        this.inputs.filename = field(this.form, 'filename', 'YOLO checkpoint filename', 'text', { backends: ['yolo'], placeholder: 'model.pt' });
+        this.inputs.detection_type = field(this.form, 'detection_type', 'YOLO detection type', 'select', { backends: ['yolo'], values: ['bbox', 'segm'] });
         this.inputs.file_pattern = field(this.form, 'file_pattern', 'GGUF file pattern', 'text', { backends: ['gguf', 'llamacpp'], placeholder: 'Model.{quant}.gguf' });
         this.inputs.mmproj = field(this.form, 'mmproj', 'Vision mmproj filename', 'text', { backends: ['gguf', 'llamacpp'] });
         this.inputs.quantizations = field(this.form, 'quantizations', 'Quantizations (comma-separated)', 'text', { wide: true, backends: ['gguf', 'llamacpp'] });
@@ -553,6 +555,7 @@ class RegistryManager {
         const backend = this.inputs.backend.value;
         const localOnly = this.inputs.local_only.checked;
         const ollama = backend === 'ollama';
+        const yolo = backend === 'yolo';
         this.syncServerQuantizations();
         for (const wrap of this.form.querySelectorAll('[data-backends]')) {
             wrap.hidden = !wrap.dataset.backends.split(',').includes(backend);
@@ -561,10 +564,16 @@ class RegistryManager {
         for (const name of ['source', 'revision', 'trust_remote_code', 'expected_sha256']) {
             this.inputs[name].closest('.smartllm-registry-field').hidden = localOnly || ollama;
         }
-        this.inputs.local_path.closest('.smartllm-registry-field').hidden = !localOnly;
-        if (backend === 'wd14') {
-            this.inputs.family.value = 'WD14';
+        this.inputs.local_path.closest('.smartllm-registry-field').hidden = !localOnly || yolo;
+        if (backend === 'wd14' || yolo) {
+            this.inputs.family.value = yolo ? 'YOLO' : 'WD14';
             this.inputs.has_vision.checked = true;
+        }
+        this.inputs.family.disabled = yolo || backend === 'wd14';
+        this.inputs.has_vision.disabled = yolo || backend === 'wd14';
+        if (yolo) {
+            this.inputs.source.value = 'huggingface';
+            this.inputs.trust_remote_code.checked = false;
         }
         this.downloadButton.disabled = localOnly || this.busy || !this.selected;
         // Ollama owns and verifies its content-addressed model store; there are
@@ -588,6 +597,7 @@ class RegistryManager {
             source: this.inputs.source.value, revision: this.inputs.revision.value.trim(),
             local_only: this.inputs.local_only.checked, local_path: this.inputs.local_path.value.trim(),
             has_vision: this.inputs.has_vision.checked, trust_remote_code: this.inputs.trust_remote_code.checked,
+            filename: this.inputs.filename.value.trim(), detection_type: this.inputs.detection_type.value,
             file_pattern: this.inputs.file_pattern.value.trim(), mmproj: this.inputs.mmproj.value.trim(),
             quantizations: this.inputs.quantizations.value.split(',').map(value => value.trim()).filter(Boolean),
             quantization: this.inputs.quantization.value,

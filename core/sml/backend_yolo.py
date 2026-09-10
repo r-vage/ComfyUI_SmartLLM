@@ -21,6 +21,7 @@ import inspect
 import os
 import pickle
 import re
+import sys
 import threading
 from collections import Counter
 from pathlib import Path
@@ -204,6 +205,7 @@ def _configure_restricted_ultralytics_loading() -> None:
         os.environ["ULTRALYTICS_SAFE_LOAD"] = "1"
 
         import torch
+        import ultralytics  # type: ignore
         import ultralytics.nn.tasks as ultralytics_tasks  # type: ignore
         import ultralytics.utils as ultralytics_utils  # type: ignore
         from ultralytics.utils import IterableSimpleNamespace  # type: ignore
@@ -224,10 +226,14 @@ def _configure_restricted_ultralytics_loading() -> None:
             or not hasattr(torch.serialization, "add_safe_globals")
         ):
             raise RuntimeError(
-                "Restricted YOLO checkpoint loading is unavailable in this "
-                "Ultralytics/PyTorch installation. Update to an SmartLLM-compatible "
-                "Ultralytics build with torch_safe_load(..., safe_only=True) and "
-                "PyTorch 2.5 or newer, or use a reviewed ONNX model instead."
+                "Restricted YOLO checkpoint loading requires Ultralytics "
+                ">=8.4.67,<8.5 and PyTorch >=2.6 in the Python environment running "
+                f"ComfyUI (found Ultralytics {getattr(ultralytics, '__version__', 'unknown')}, "
+                f"PyTorch {getattr(torch, '__version__', 'unknown')}). Update "
+                f"Ultralytics with: \"{sys.executable}\" -m pip install --upgrade "
+                "\"ultralytics>=8.4.67,<8.5\". If PyTorch is older than 2.6, "
+                "install a matching 2.6+ build for your ComfyUI/CUDA setup, or use "
+                "a reviewed ONNX model instead."
             )
 
         audited_globals = [

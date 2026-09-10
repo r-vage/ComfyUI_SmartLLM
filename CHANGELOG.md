@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-09-11
+
+### Version: 1.0.13
+
+- **Fix**
+  - Keep shipped YOLO registry models selectable before their artifacts exist locally, allowing Smart Detection to invoke the existing pinned, hash-verified automatic download path while continuing to hide missing local-only discoveries.
+  - Show YOLO models in Smart LM Manager with safe add, edit, inspect, download, verify, delete, and registry-removal support, including dedicated checkpoint filename and bbox/segm fields.
+  - Replace vague restricted-loader guidance with the exact supported Ultralytics `>=8.4.67,<8.5` and PyTorch `>=2.6` requirements, detected installed versions, and an interpreter-specific Ultralytics upgrade command.
+
+**Changed files:**
+- `core/sml/backend_yolo.py`
+- `core/sml/model_acquisition.py`
+- `core/sml/model_registry.py`
+- `core/sml/server_endpoints.py`
+- `js/smartllm-registry-manager.js`
+- `pyproject.toml`
+
 ## 2026-09-09
 
 ### Version: 1.0.12

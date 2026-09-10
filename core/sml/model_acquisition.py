@@ -115,6 +115,21 @@ def resolve_registered_model_path(
     if not isinstance(repo_id, str) or not isinstance(name, str) or not name:
         raise ValueError("Registry entry has invalid model identity fields")
 
+    if backend == "yolo":
+        filename = entry.get("filename")
+        if not isinstance(filename, str) or not filename:
+            raise ValueError("YOLO registry entries require filename")
+        from .backend_yolo import resolve_yolo_model_path
+
+        resolved_path = resolve_yolo_model_path(filename)
+        if resolved_path is not None:
+            return resolved_path, False
+        if entry.get("local_only", False):
+            raise FileNotFoundError(
+                f"Local-only YOLO model is unavailable: {filename}"
+            )
+        return "", True
+
     if entry.get("local_only", False):
         local_path = _safe_local_registry_path(entry.get("local_path"))
         if not local_path.exists():
@@ -256,6 +271,16 @@ def acquire_registered_model(
     # Acquire one registry selection through its already-hardened backend path.
     backend = entry.get("backend")
     repo_id = entry.get("repo_id", "")
+    if backend == "yolo":
+        from .backend_yolo import download_yolo_model
+
+        existing_path = (
+            local_model_path
+            if local_model_path and Path(local_model_path).is_file()
+            else None
+        )
+        return download_yolo_model(entry, local_model_path=existing_path)
+
     if entry.get("local_only", False):
         model_path, _ = resolve_registered_model_path(
             entry, quantization, log_prefix=log_prefix
