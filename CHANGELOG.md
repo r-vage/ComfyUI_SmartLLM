@@ -2,6 +2,19 @@
 
 ## 2026-09-11
 
+### Version: 1.0.14
+
+- **Fix**
+  - Remove five Anzhc YOLO artifacts explicitly marked unsafe by Hugging Face from bundled downloads and provenance; upgrade cleanup retires stale remote entries while preserving already-downloaded files as local-only models protected by restricted loading.
+
+**Changed files:**
+- `.defaults/.manifest.json`
+- `.defaults/registry/yolo_models.json.example`
+- `core/sml/model_registry.py`
+- `pyproject.toml`
+
+## 2026-09-11
+
 ### Version: 1.0.13
 
 - **Fix**

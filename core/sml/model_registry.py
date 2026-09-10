@@ -1033,6 +1033,13 @@ def is_trust_remote_code_allowed(display_name: str, override: bool = False) -> b
 # ============================================================================
 
 _YOLO_REGISTRY_FILE = "yolo_models.json"
+_RETIRED_CURATED_YOLO_ARTIFACTS = {
+    ("Anzhc/Anzhcs_YOLOs", "Anzhc Eyes -seg-hd.pt"),
+    ("Anzhc/Anzhcs_YOLOs", "Anzhc Face -seg.pt"),
+    ("Anzhc/Anzhcs_YOLOs", "Anzhc HeadHair seg y8m.pt"),
+    ("Anzhc/Anzhcs_YOLOs", "Anzhc HeadHair seg y8n.pt"),
+    ("Anzhc/Anzhcs_YOLOs", "Anzhc Manga Panels -seg.pt"),
+}
 
 # Module-level YOLO registry cache
 _yolo_registry: Optional[Dict[str, Dict[str, Any]]] = None
@@ -1052,6 +1059,15 @@ def _yolo_repository_id(repo_id: object) -> str | None:
         return match.group(1) if match else None
     parts = repo_id.split("/", 2)
     return f"{parts[0]}/{parts[1]}" if len(parts) >= 2 else None
+
+
+def _is_retired_curated_yolo_entry(entry: dict[str, Any]) -> bool:
+    # User-added entries remain under operator control; this gate retires only
+    # the exact shipped artifacts confirmed unsafe by Hugging Face scanning.
+    if entry.get("_registry_origin") == "user":
+        return False
+    identity = (_yolo_repository_id(entry.get("repo_id")), entry.get("filename"))
+    return identity in _RETIRED_CURATED_YOLO_ARTIFACTS
 
 
 def _load_yolo_registry(force: bool = False) -> Dict[str, Dict[str, Any]]:
@@ -1079,6 +1095,8 @@ def _load_yolo_registry(force: bool = False) -> Dict[str, Dict[str, Any]]:
 
         for name, entry in raw.items():
             if name.startswith("_") or not isinstance(entry, dict):
+                continue
+            if _is_retired_curated_yolo_entry(entry):
                 continue
             resolved_entry = dict(entry)
             repository_id = _yolo_repository_id(entry.get("repo_id"))
@@ -1141,6 +1159,34 @@ def sync_yolo_registry():
                 registry["_repositories"] = copy.deepcopy(curated_repositories)
                 changed = True
                 debug_messages.append("Updated curated YOLO provenance pins")
+
+            # Retire only the exact former shipped entries. Preserve existing
+            # checkpoint bytes by converting an installed artifact to a local-only
+            # discovery; a missing artifact disappears from the runtime registry.
+            for key, entry in list(registry.items()):
+                if (
+                    key.startswith("_")
+                    or not isinstance(entry, dict)
+                    or not _is_retired_curated_yolo_entry(entry)
+                ):
+                    continue
+                filename = entry.get("filename", f"{key}.pt")
+                if filename in disk_files:
+                    registry[key] = {
+                        "filename": filename,
+                        "family": "YOLO",
+                        "detection_type": disk_files[filename],
+                        "description": f"Auto-discovered: {filename}",
+                        "local_only": True,
+                        "available": True,
+                    }
+                    debug_messages.append(
+                        f"Converted retired curated YOLO model to local-only: {key}"
+                    )
+                else:
+                    del registry[key]
+                    debug_messages.append(f"Removed retired curated YOLO model: {key}")
+                changed = True
 
             # Build filename → registry key lookup from the latest generation.
             filename_to_key: dict[str, str] = {}
