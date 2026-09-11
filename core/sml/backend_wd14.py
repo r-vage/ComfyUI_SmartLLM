@@ -187,9 +187,11 @@ def _resolve_ort_provider_plan(
     elif cuda_available:
         providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
     elif device == "cuda":
-        raise RuntimeError(
-            "WD14 requested CUDA, but ONNX Runtime does not expose "
-            "CUDAExecutionProvider"
+        providers = ["CPUExecutionProvider"]
+        log.warning(
+            _LOG_PREFIX,
+            "CUDA requested but ONNX Runtime does not expose "
+            "CUDAExecutionProvider; using CPUExecutionProvider",
         )
     else:
         providers = ["CPUExecutionProvider"]

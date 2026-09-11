@@ -2,6 +2,17 @@
 
 ## 2026-09-11
 
+### Version: 1.0.15
+
+- **Fix**
+  - Let WD14 honor its established CPU fallback when CUDA is requested but ONNX Runtime does not expose `CUDAExecutionProvider`, warning about the effective provider instead of aborting before model load.
+
+**Changed files:**
+- `core/sml/backend_wd14.py`
+- `pyproject.toml`
+
+## 2026-09-11
+
 ### Version: 1.0.14
 
 - **Fix**
