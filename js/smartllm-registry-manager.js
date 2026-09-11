@@ -316,12 +316,6 @@ class RegistryManager {
         }
         setupCard.appendChild(details);
 
-        if (setup.installer_command) {
-            const command = element('div', 'smartllm-docker-command');
-            command.appendChild(element('code', '', setup.installer_command));
-            command.appendChild(this.button(setup.command_label || 'Copy command', () => this.copyText(setup.installer_command, 'Command'), 'smartllm-docker-copy-command'));
-            setupCard.appendChild(command);
-        }
         if (setup.restart_required) {
             setupCard.appendChild(element('p', 'smartllm-docker-note', 'After changing group membership, log out or reboot and then restart ComfyUI.'));
         }
@@ -332,7 +326,7 @@ class RegistryManager {
             guide.rel = 'noopener noreferrer';
             setupCard.appendChild(guide);
         }
-        setupCard.appendChild(element('p', 'smartllm-docker-note', 'Installation remains terminal-only. SmartLLM never requests or stores sudo credentials.'));
+        setupCard.appendChild(element('p', 'smartllm-docker-note', 'Installation and privileged service administration remain terminal-only.'));
         this.dockerContent.appendChild(setupCard);
 
         this.dockerContent.appendChild(element('h3', '', `Managed images · ${this.dockerState.selected_vendor || 'auto'}`));

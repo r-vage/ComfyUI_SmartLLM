@@ -10,7 +10,6 @@ import ipaddress
 import json
 import sys
 import time
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -25,7 +24,6 @@ from aiohttp import web  # type: ignore
 from comfy.cli_args import args  # type: ignore
 from server import PromptServer  # type: ignore
 
-from ..self_update import get_update_status, perform_self_update, read_disk_version
 from .config_templates import (
     DEFAULT_CHIP_COLOR,
     get_config_snapshot,
@@ -45,9 +43,6 @@ _LOG_PREFIX = "Endpoints"
 _REGISTRY_RELOAD_DEBOUNCE_S = 2.0
 _last_registry_reload_ts = 0.0
 _MAX_JSON_REQUEST_BYTES = 16 * 1024
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_OFFICIAL_REPOSITORY = "https://github.com/r-vage/ComfyUI_SmartLLM.git"
-_running_version = read_disk_version(_REPO_ROOT)
 
 
 def _same_origin_browser_request(request: web.Request) -> bool:
@@ -1106,57 +1101,6 @@ class SMLTaskEndpoints:
         log.debug(_LOG_PREFIX, "Registered task endpoints")
 
 
-class SelfUpdateEndpoints:
-    """Local-only SmartLLM code update endpoints."""
-
-    def __init__(self):
-        self._register_endpoints()
-
-    def _register_endpoints(self):
-        @PromptServer.instance.routes.get("/smartlml/update/status")
-        async def get_self_update_status(request):
-            return web.json_response(get_update_status(_REPO_ROOT, _running_version))
-
-        @PromptServer.instance.routes.post("/smartlml/update")
-        async def run_self_update(request):
-            denial = _global_mutation_denial(request)
-            if denial is not None:
-                return denial
-            if not _request_is_loopback(request):
-                return web.json_response(
-                    {
-                        "success": False,
-                        "status": "forbidden",
-                        "error": "Self-update is limited to the local ComfyUI browser.",
-                    },
-                    status=403,
-                )
-            data = await _read_json_object(request)
-            if data.get("confirmed") is not True:
-                return web.json_response(
-                    {
-                        "success": False,
-                        "status": "confirmation_required",
-                        "error": "Explicit update confirmation is required.",
-                    },
-                    status=400,
-                )
-            result = await asyncio.to_thread(
-                perform_self_update,
-                _REPO_ROOT,
-                _OFFICIAL_REPOSITORY,
-                _running_version,
-            )
-            response_status = {
-                "busy": 409,
-                "unsupported": 422,
-                "untracked_conflict": 409,
-                "dependency_failed": 500,
-                "failed": 500,
-            }.get(result.get("status"), 200)
-            return web.json_response(result, status=response_status)
-
-
 class SMLDetectionEndpoints:
     # Detection model list endpoint for the Detection node.
 
@@ -1183,7 +1127,6 @@ def initialize_endpoints():
         SMLDockerEndpoints()
         SMLTaskEndpoints()
         SMLDetectionEndpoints()
-        SelfUpdateEndpoints()
 
         log.msg(_LOG_PREFIX, "All server endpoints initialized successfully")
     except Exception as e:  # noqa: BLE001 -- extension initialization boundary

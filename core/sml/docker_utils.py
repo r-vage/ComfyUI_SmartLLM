@@ -142,35 +142,31 @@ def _start_docker_windows(wait_timeout: int) -> bool:
 
 
 def _start_docker_linux(wait_timeout: int) -> bool:
-    # Start Docker daemon on Linux via systemd.
-    # Try rootless (no sudo) first, fall back to system docker (sudo) if needed.
-    log.msg(_LOG_PREFIX, "Starting Docker daemon via systemd...")
+    # Start only a rootless user service. System service administration belongs
+    # in an explicit terminal session outside the ComfyUI process.
+    log.msg(_LOG_PREFIX, "Starting the rootless Docker user service...")
     try:
-        # Try rootless / user-level docker first (no privilege escalation)
         result = subprocess.run(
             ["systemctl", "--user", "start", "docker"],
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         if result.returncode != 0:
-            # Fall back to system docker (requires sudo)
-            log.debug(
+            log.warning(
                 _LOG_PREFIX,
-                "Rootless docker not available, trying system docker with sudo...",
+                "The rootless Docker user service is unavailable. Start the system "
+                "Docker service from a terminal, then retry; SmartLLM does not run "
+                "privileged service commands.",
             )
-            result = subprocess.run(
-                ["sudo", "systemctl", "start", "docker"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode != 0:
-                log.warning(_LOG_PREFIX, "Failed to start Docker via systemctl")
-                return False
+            return False
         return _wait_for_daemon(wait_timeout)
     except FileNotFoundError:
-        log.warning(_LOG_PREFIX, "systemctl not found \u2014 cannot auto-start Docker")
+        log.warning(
+            _LOG_PREFIX,
+            "systemctl is unavailable; start Docker outside ComfyUI, then retry.",
+        )
         return False
     except Exception as e:
         log.error(_LOG_PREFIX, f"Failed to start Docker daemon: {e}")
@@ -192,7 +188,7 @@ def start_docker_daemon(wait_timeout: int = 60) -> bool:
     # Start the Docker daemon on any platform (Windows, Linux, macOS).
     #
     # - Windows: Launches Docker Desktop
-    # - Linux: Starts docker.service via systemd
+    # - Linux: Starts only a rootless user-level docker.service
     # - macOS: Opens Docker Desktop app
     #
     # Args:

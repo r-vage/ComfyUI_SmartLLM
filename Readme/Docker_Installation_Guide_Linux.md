@@ -604,10 +604,13 @@ sudo rm /etc/apt/keyrings/docker.asc
 # Fedora/RHEL/CentOS
 sudo dnf remove docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin docker-ce-rootless-extras
-
-# Remove data (DESTRUCTIVE - removes all images, containers, volumes)
-sudo rm -rf /var/lib/docker /var/lib/containerd
 ```
+
+These package-removal commands intentionally leave Docker and containerd data in
+place. If you also intend to erase all images, containers, volumes, and runtime
+state, first make a backup and follow Docker's distribution-specific uninstall
+documentation at <https://docs.docker.com/engine/install/>. SmartLLM does not
+provide a recursive system-data deletion command.
 
 ### NVIDIA Container Toolkit
 

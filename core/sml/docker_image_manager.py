@@ -8,7 +8,6 @@ import os
 import platform
 import queue
 import re
-import shlex
 import shutil
 import subprocess
 import threading
@@ -463,19 +462,14 @@ def _installation_overview() -> dict[str, Any]:
     installer_available = system == "Linux" and _INSTALLER_PATH.is_file()
     setup_state = "ready"
     setup_message = "Docker Engine is installed and accessible to ComfyUI."
-    setup_command = ""
-    command_label = ""
     restart_required = False
 
     if not docker_installed:
         setup_state = "not_installed"
         setup_message = (
-            "Docker Engine is not installed. Linux users can run SmartLLM's "
-            "installer from a terminal."
+            "Docker Engine is not installed. Open SmartLLM's Linux Docker guide "
+            "for terminal installation steps."
         )
-        if installer_available:
-            setup_command = f"sudo {shlex.quote(str(_INSTALLER_PATH))}"
-            command_label = "Copy installer command"
     elif not daemon_accessible:
         error_lower = daemon_error.lower()
         if "permission denied" in error_lower or (
@@ -490,20 +484,17 @@ def _installation_overview() -> dict[str, Any]:
                 restart_required = True
             else:
                 setup_message = (
-                    "Docker is installed, but this user cannot access the Docker daemon."
+                    "Docker is installed, but this user cannot access the Docker "
+                    "daemon. Open the Linux Docker guide to configure access."
                 )
                 if system == "Linux":
-                    setup_command = (
-                        f"sudo usermod -aG docker {shlex.quote(username)}"
-                    )
-                    command_label = "Copy Docker group command"
                     restart_required = True
         else:
             setup_state = "daemon_unavailable"
-            setup_message = "Docker is installed, but its daemon is not available."
-            if system == "Linux":
-                setup_command = "sudo systemctl enable --now docker"
-                command_label = "Copy daemon start command"
+            setup_message = (
+                "Docker is installed, but its daemon is not available. Start Docker "
+                "outside ComfyUI; Linux setup steps are available in the guide."
+            )
 
     gpu_vendor = _normalize_vendor("auto")
     gpu: dict[str, Any] = {"vendor": gpu_vendor}
@@ -543,8 +534,10 @@ def _installation_overview() -> dict[str, Any]:
             "state": setup_state,
             "message": setup_message,
             "installer_available": installer_available,
-            "installer_command": setup_command,
-            "command_label": command_label,
+            # Retain empty legacy keys so older frontends fail closed instead of
+            # rendering a command supplied by the server.
+            "installer_command": "",
+            "command_label": "",
             "restart_required": restart_required,
             "guide_path": str(_GUIDE_PATH) if system == "Linux" else "",
             "guide_url": _GUIDE_URL if system == "Linux" else "",

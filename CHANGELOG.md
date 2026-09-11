@@ -2,6 +2,29 @@
 
 ## 2026-09-11
 
+### Version: 1.0.16
+
+- **Fix**
+  - Keep Linux Docker auto-start privilege-free by trying only the rootless user service, directing system-service setup to the existing guide instead of invoking or generating privileged commands.
+
+- **Docs**
+  - Remove the recursive Docker/containerd system-data deletion command from the Linux uninstall guide and direct intentional full cleanup to Docker's distribution-specific documentation.
+
+- **Chore**
+  - Remove the built-in software updater and its server endpoints, leaving SmartLLM upgrades to ComfyUI Manager or explicit repository/package-management workflows.
+
+**Changed files:**
+- `Readme/Docker_Installation_Guide_Linux.md`
+- `core/self_update.py`
+- `core/sml/docker_image_manager.py`
+- `core/sml/docker_utils.py`
+- `core/sml/server_endpoints.py`
+- `js/smartllm-self-update.js`
+- `js/smartllm-registry-manager.js`
+- `pyproject.toml`
+
+## 2026-09-11
+
 ### Version: 1.0.15
 
 - **Fix**
