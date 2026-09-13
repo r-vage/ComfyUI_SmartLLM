@@ -2,10 +2,14 @@ const LEGACY_WIDGET_VALUE_COUNT = 36;
 const RETIRED_TRUST_REMOTE_CODE_INDEX = 35;
 const EXPANDED_CURRENT_WIDGET_VALUE_COUNT = 40;
 const EXPANDED_LEGACY_WIDGET_VALUE_COUNT = 41;
+const EXPANDED_BLACKLIST_LEGACY_WIDGET_VALUE_COUNT = 42;
+const EXPANDED_EARLY_UI_ONLY_WIDGET_VALUE_COUNT = 37;
 const EXPANDED_RETIRED_TRUST_REMOTE_CODE_INDEX = 37;
 const EXPANDED_UI_ONLY_INDICES = Object.freeze([0, 3, 37, 38, 39]);
 const EXPANDED_LEGACY_UI_ONLY_INDICES = Object.freeze([0, 3, 38, 39, 40]);
 const EXPANDED_LEGACY_REMOVED_INDICES = Object.freeze([0, 3, 37, 38, 39, 40]);
+const EXPANDED_BLACKLIST_UI_ONLY_INDICES = Object.freeze([0, 3, 39, 40, 41]);
+const EXPANDED_EARLY_UI_ONLY_INDICES = Object.freeze([0, 3]);
 const RETAINED_BACKING_WIDGET_NAMES = Object.freeze([
     'memory_cleanup',
     'keep_model_loaded',
@@ -90,6 +94,36 @@ function removeIndices(values, indices) {
     return values.filter((_value, index) => !removed.has(index));
 }
 
+function hasExpandedBlacklistLegacyValueSignature(values) {
+    return hasModeChipValueSignature(values[0])
+        && EXPANDED_BLACKLIST_UI_ONLY_INDICES.slice(1)
+            .every(index => isEmptyUiOnlyValue(values[index]))
+        && values.slice(32, 39).every(value => typeof value === 'boolean')
+        && typeof values[27] === 'number'
+        && typeof values[28] === 'number'
+        && typeof values[29] === 'number'
+        && typeof values[30] === 'string'
+        && typeof values[31] === 'boolean';
+}
+
+function migrateExpandedBlacklistLegacyValues(values) {
+    const legacy = removeIndices(values, EXPANDED_BLACKLIST_UI_ONLY_INDICES);
+    return [
+        ...legacy.slice(0, 25),
+        legacy[26],
+        legacy[27],
+        legacy[29],
+        legacy[25],
+        ...legacy.slice(30, 36),
+    ];
+}
+
+function hasExpandedEarlyUiOnlyValueSignature(values) {
+    return isEmptyUiOnlyValue(values[0])
+        && isEmptyUiOnlyValue(values[3])
+        && values.slice(31, 37).every(value => typeof value === 'boolean');
+}
+
 export function migrateRetiredTrustRemoteCodeWidget(info, widgets) {
     if (!info || typeof info !== 'object' || Array.isArray(info)) return info;
 
@@ -103,6 +137,16 @@ export function migrateRetiredTrustRemoteCodeWidget(info, widgets) {
     ) {
         migrated = { ...migrated, widgets_values: values.slice() };
         migrated.widgets_values.splice(RETIRED_TRUST_REMOTE_CODE_INDEX, 1);
+    } else if (
+        Array.isArray(values)
+        && values.length === EXPANDED_BLACKLIST_LEGACY_WIDGET_VALUE_COUNT
+        && hasExpandedWidgetSignature(widgets)
+        && hasExpandedBlacklistLegacyValueSignature(values)
+    ) {
+        migrated = {
+            ...migrated,
+            widgets_values: migrateExpandedBlacklistLegacyValues(values),
+        };
     } else if (
         Array.isArray(values)
         && values.length === EXPANDED_LEGACY_WIDGET_VALUE_COUNT
@@ -122,6 +166,16 @@ export function migrateRetiredTrustRemoteCodeWidget(info, widgets) {
         migrated = {
             ...migrated,
             widgets_values: removeIndices(values, EXPANDED_UI_ONLY_INDICES),
+        };
+    } else if (
+        Array.isArray(values)
+        && values.length === EXPANDED_EARLY_UI_ONLY_WIDGET_VALUE_COUNT
+        && hasExpandedWidgetSignature(widgets)
+        && hasExpandedEarlyUiOnlyValueSignature(values)
+    ) {
+        migrated = {
+            ...migrated,
+            widgets_values: removeIndices(values, EXPANDED_EARLY_UI_ONLY_INDICES),
         };
     }
 

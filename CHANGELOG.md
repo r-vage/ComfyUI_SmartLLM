@@ -2,6 +2,17 @@
 
 ## 2026-09-13
 
+### Version: 1.0.18
+
+- **Fix**
+  - Restore older expanded Smart LM Loader workflows that contain both the retired WD14 blacklist and Trust Remote Code values, moving the legacy seed into the current schema order while discarding only obsolete and UI-only entries. Also normalize intermediate saves that contain only the early mode-bar and delete-button placeholders, allowing backend-conditional widgets such as attention mode to resolve correctly.
+
+**Changed files:**
+- `js/smartllm-loader-compat.js`
+- `pyproject.toml`
+
+## 2026-09-13
+
 ### Version: 1.0.17
 
 - **Breaking**
