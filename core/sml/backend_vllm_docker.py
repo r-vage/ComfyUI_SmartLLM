@@ -114,7 +114,6 @@ def _get_default_config() -> dict:
         "backend": "vllm",
         "gpu_memory_utilization": 0.6,
         "dtype": "auto",
-        "trust_remote_code": False,
         "docker_bind_host": "127.0.0.1",
         "allow_unpinned_docker_images": False,
         "vllm": {
@@ -247,15 +246,11 @@ def get_vllm_config() -> dict:
 
 
 def get_global_docker_options() -> dict:
-    # Get global Docker options (gpu_memory_utilization, dtype, trust_remote_code).
-    # NOTE: trust_remote_code defaults to False here (safe). The per-model registry
-    # flag and the runtime "⚠ Trust Remote Code" chip are the source of truth —
-    # callers pass an explicit value into start_vllm_container() which overrides this.
+    # Get global Docker options used by managed backends.
     config = load_docker_config()
     return {
         "gpu_memory_utilization": config.get("gpu_memory_utilization", 0.9),
         "dtype": config.get("dtype", "auto"),
-        "trust_remote_code": config.get("trust_remote_code", False),
     }
 
 
@@ -804,7 +799,6 @@ def _build_vllm_container_plan(
     max_model_len: int,
     quantization: str | None,
     gpu_memory_utilization: float,
-    trust_remote_code: bool,
     tensor_parallel_size: int,
     dtype: str,
     use_torch_compile: bool = False,
@@ -898,7 +892,6 @@ def _build_vllm_container_plan(
             ("served_model_name", docker_model_path),
             ("tensor_parallel_size", tensor_parallel_size),
             ("tokenizer", tokenizer_hint or ""),
-            ("trust_remote_code", trust_remote_code),
         ),
     )
 
@@ -931,8 +924,6 @@ def _build_vllm_container_plan(
         docker_command.extend(["--tensor-parallel-size", str(tensor_parallel_size)])
     if tokenizer_hint:
         docker_command.extend(["--tokenizer", tokenizer_hint])
-    if trust_remote_code:
-        docker_command.append("--trust-remote-code")
     if mistral_load_format:
         docker_command.extend(["--load-format", "mistral"])
     if enforce_eager:
@@ -1066,7 +1057,6 @@ def start_vllm_container(
     wait_for_ready: bool = True,
     quantization: str | None = None,
     gpu_memory_utilization: float | None = None,
-    trust_remote_code: bool | None = None,
     use_torch_compile: bool = False,
     model_provenance: str = "",
     tensor_parallel_size: int | None = None,
@@ -1153,14 +1143,6 @@ def start_vllm_container(
 
         # Get additional docker settings (global config)
         dtype = global_cfg.get("dtype", "auto")
-        # trust_remote_code: caller (registry flag OR chip) overrides the global config.
-        # Default False = safe. Caller passes True only when the model entry explicitly
-        # whitelists it or the runtime "⚠ Trust Remote Code" chip is on.
-        if trust_remote_code is None:
-            trust_remote_code = bool(global_cfg.get("trust_remote_code", False))
-        else:
-            trust_remote_code = trust_remote_code
-
         # Get GPU memory utilization - use parameter if provided, else global config
         if gpu_memory_utilization is None:
             gpu_memory_utilization = global_cfg.get("gpu_memory_utilization", 0.9)
@@ -1366,9 +1348,6 @@ def start_vllm_container(
                     f"  Using tensor parallelism: {tensor_parallel_size} GPUs",
                 )
 
-        if trust_remote_code:
-            docker_cmd.append("--trust-remote-code")
-
         # Detect Mistral3/Pixtral vision models - they need special handling
         # These models have both consolidated.safetensors (Mistral format) and model.safetensors (HF format)
         # vLLM defaults to HF format which causes weight loading issues for Mistral-native models
@@ -1502,7 +1481,6 @@ def start_vllm_container(
             max_model_len=max_model_len,
             quantization=quantization,
             gpu_memory_utilization=gpu_memory_utilization,
-            trust_remote_code=trust_remote_code,
             tensor_parallel_size=tensor_parallel_size,
             dtype=dtype,
             use_torch_compile=use_torch_compile,
@@ -1647,7 +1625,6 @@ def auto_start_vllm_for_model(
     model_path: str,
     quantization: str | None = None,
     context_size: int | None = None,
-    trust_remote_code: bool = False,
     use_torch_compile: bool = False,
     model_provenance: str = "",
     tensor_parallel_size: int | None = None,
@@ -1694,7 +1671,6 @@ def auto_start_vllm_for_model(
         wait_for_ready=True,
         quantization=quantization,
         max_model_len=context_size,  # Pass context_size as max_model_len
-        trust_remote_code=trust_remote_code,
         use_torch_compile=use_torch_compile,
         model_provenance=model_provenance,
         tensor_parallel_size=tensor_parallel_size,
@@ -1776,7 +1752,6 @@ def load_vllm(
     model_path: str,
     quantization: str | None = None,
     context_size: int | None = None,
-    trust_remote_code: bool = False,
     use_torch_compile: bool = False,
     model_provenance: str = "",
     tensor_parallel_size: int | None = None,
@@ -1819,7 +1794,6 @@ def load_vllm(
             model_path,
             quantization=quantization,
             context_size=context_size,
-            trust_remote_code=trust_remote_code,
             use_torch_compile=use_torch_compile,
             model_provenance=model_provenance,
             tensor_parallel_size=tensor_parallel_size,

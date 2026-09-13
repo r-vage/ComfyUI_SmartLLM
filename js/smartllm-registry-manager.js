@@ -191,7 +191,6 @@ class RegistryManager {
         this.inputs.local_only = field(this.form, 'local_only', 'Use an existing local model only', 'checkbox');
         this.inputs.local_path = field(this.form, 'local_path', 'Local path below configured LLM folder', 'text', { wide: true, placeholder: 'ModelFolder or ModelFolder/model.gguf' });
         this.inputs.has_vision = field(this.form, 'has_vision', 'Vision-capable model', 'checkbox');
-        this.inputs.trust_remote_code = field(this.form, 'trust_remote_code', 'Allow pinned repository Python code', 'checkbox');
         this.inputs.filename = field(this.form, 'filename', 'YOLO checkpoint filename', 'text', { backends: ['yolo'], placeholder: 'model.pt' });
         this.inputs.detection_type = field(this.form, 'detection_type', 'YOLO detection type', 'select', { backends: ['yolo'], values: ['bbox', 'segm'] });
         this.inputs.file_pattern = field(this.form, 'file_pattern', 'GGUF file pattern', 'text', { backends: ['gguf', 'llamacpp'], placeholder: 'Model.{quant}.gguf' });
@@ -555,7 +554,7 @@ class RegistryManager {
             wrap.hidden = !wrap.dataset.backends.split(',').includes(backend);
         }
         this.inputs.repo_id.closest('.smartllm-registry-field').hidden = localOnly;
-        for (const name of ['source', 'revision', 'trust_remote_code', 'expected_sha256']) {
+        for (const name of ['source', 'revision', 'expected_sha256']) {
             this.inputs[name].closest('.smartllm-registry-field').hidden = localOnly || ollama;
         }
         this.inputs.local_path.closest('.smartllm-registry-field').hidden = !localOnly || yolo;
@@ -567,7 +566,6 @@ class RegistryManager {
         this.inputs.has_vision.disabled = yolo || backend === 'wd14';
         if (yolo) {
             this.inputs.source.value = 'huggingface';
-            this.inputs.trust_remote_code.checked = false;
         }
         this.downloadButton.disabled = localOnly || this.busy || !this.selected;
         // Ollama owns and verifies its content-addressed model store; there are
@@ -590,7 +588,7 @@ class RegistryManager {
             family: this.inputs.family.value, repo_id: this.inputs.repo_id.value.trim(),
             source: this.inputs.source.value, revision: this.inputs.revision.value.trim(),
             local_only: this.inputs.local_only.checked, local_path: this.inputs.local_path.value.trim(),
-            has_vision: this.inputs.has_vision.checked, trust_remote_code: this.inputs.trust_remote_code.checked,
+            has_vision: this.inputs.has_vision.checked,
             filename: this.inputs.filename.value.trim(), detection_type: this.inputs.detection_type.value,
             file_pattern: this.inputs.file_pattern.value.trim(), mmproj: this.inputs.mmproj.value.trim(),
             quantizations: this.inputs.quantizations.value.split(',').map(value => value.trim()).filter(Boolean),
@@ -602,7 +600,6 @@ class RegistryManager {
             delete entry.source;
             delete entry.revision;
             delete entry.expected_sha256;
-            entry.trust_remote_code = false;
         }
         return entry;
     }

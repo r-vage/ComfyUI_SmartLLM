@@ -109,7 +109,6 @@ def load_vllm(
     quantization: Optional[str] = None,
     context_size: Optional[int] = None,
     gpu_memory_utilization: Optional[float] = None,
-    trust_remote_code: bool = False,
     use_torch_compile: bool = False,
 ) -> Optional[Dict[str, Any]]:
     # Load model via native vLLM (Linux only).
@@ -168,7 +167,7 @@ def load_vllm(
             "dtype": "auto",  # Let vLLM auto-detect (supports FP8 natively)
             "seed": 0,  # Explicit seed (None is deprecated in v0.13)
             "allowed_local_media_path": "/",  # Allow loading local images for vision models
-            "trust_remote_code": trust_remote_code,  # Required for newer model architectures (Mistral 3/Pixtral) — caller-controlled
+            "trust_remote_code": False,
             "disable_log_stats": True,  # Reduce log spam
             # Native vLLM shares the ComfyUI CUDA process. Keep CUDA graph capture
             # opt-in, matching the safer Docker backend default.

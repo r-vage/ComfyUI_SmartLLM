@@ -94,24 +94,20 @@ that flag means "run whatever `.py` files come with the repo, no questions."
 
 ---
 
-## What SmartLLM ships to reduce these risks (v1.0.0)
+## What SmartLLM ships to reduce these risks
 
 SmartLLM can't make Hugging Face safe, and it can't make `transformers` safe,
-but it does try to remove the easy footguns. As of **v1.0.0** the SmartLLM
-subsystem has been hardened along several axes — none of these replace the
-advice in this document, they just make the unsafe defaults less unsafe:
+but it removes several common footguns. None of these controls replace the
+advice in this document:
 
-- **`trust_remote_code` is now default-deny.** Previously several SmartLLM
-  loader paths hardcoded `trust_remote_code=True`. That is gone. The value
-  is now controlled by a **per-model registry flag** (default `false`) and
-  an immutable full commit pin. Automatic trust can only be enabled by:
-  - setting `trust_remote_code: true` together with a 40-character
-    `revision` commit on a specific model in the registry (reachable curated
-    Florence-2 and Mistral entries ship this way), or
-  - toggling the **"⚠ Trust Remote Code" chip** on the *Smart LM Loader*
-    node at workflow time. This is an explicit override of the registry/pin
-    policy for a source you reviewed yourself. The *Smart Detection* node has
-    no chip; only a correctly pinned registry entry can enable remote code.
+- **Repository-supplied Python model code is unsupported.** SmartLLM explicitly
+  passes `trust_remote_code=False` at its remaining Transformers Auto-class
+  boundaries and never adds `--trust-remote-code` to vLLM launches. The node,
+  registry manager, registries, and Docker configuration do not expose an
+  override. Legacy workflow, registry, and Docker values are ignored.
+- **Florence uses local reviewed code.** Florence-2 is loaded only through
+  SmartLLM's vendored model, config, and processor implementations. It never
+  falls back to repository-provided AutoModel or AutoProcessor code.
 - **Hugging Face downloads use immutable provenance.** SmartLLM resolves a
   branch/tag once, uses the same full commit for metadata and every file,
   verifies final bytes, and records a local manifest. Unchanged large models
@@ -163,9 +159,9 @@ advice in this document, they just make the unsafe defaults less unsafe:
 
 None of this turns `transformers`-style local loading into a safe operation —
 the **only** layout that is actually safe is the Docker + Ollama
-recommendation in the TL;DR. But if you do load a model in-process, the
-registry flag and chip at least force you to opt in deliberately for each
-individual model.
+recommendation in the TL;DR. SmartLLM's remote-code denial removes one execution
+path, but unsafe pickle weights and vulnerabilities in installed libraries
+remain relevant to in-process loading.
 
 ---
 
@@ -259,7 +255,8 @@ All four Docker backends are dramatically safer than in-process
 
 ### 🔴 Worst — `transformers` directly in the ComfyUI Python process
 - Loads pickle / `.bin` weights → **RCE on load.**
-- `trust_remote_code=True` runs strangers' `.py` files **in-process.**
+- SmartLLM denies repository-supplied Python code, but generic Transformers use
+  with `trust_remote_code=True` runs strangers' `.py` files **in-process.**
 - Full access to your `$HOME`, SSH keys, browser cookies, wallets,
   ComfyUI workflows, Civitai / HF API tokens.
 - One bad model = one compromised user account.
@@ -267,13 +264,14 @@ All four Docker backends are dramatically safer than in-process
 ### 🟡 Better — vLLM / SGLang / llama.cpp-HTTP in Docker
 - Still pulls models from the open Hugging Face registry.
 - Still loads PyTorch `.bin` (pickle) weights when present.
-- Still honors `--trust-remote-code` if you (or a default config) set it.
+- SmartLLM never supplies vLLM's `--trust-remote-code` option; models that
+  require repository Python are unsupported.
 - **BUT** — the exploit now runs *inside the container*, not on your host.
   - No access to your home directory, keys, wallets, or workflows.
   - `docker rm -f <name>` wipes it clean in one command.
   - Network egress can be firewalled per-container.
-- **Safe usage rule:** stick to `.safetensors` weights and never pass
-  `--trust-remote-code` unless you've read every `.py` file in the repo.
+- **Safe usage rule:** stick to `.safetensors` weights and keep repository
+  Python code disabled in any manually managed server as well.
 
 ### 🟢 Best for casual users — Ollama in Docker
 Ollama is the strictest of the four because it is defense-in-depth on
@@ -319,7 +317,7 @@ territory, but it is **still only GGUF**, so still no code execution path.)
 | Threat                                     | `transformers` (host) | vLLM / SGLang (Docker)  | Ollama (Docker)    |
 | ------------------------------------------ | :-------------------: | :---------------------: | :----------------: |
 | Code exec on model load                    | 🔴 yes (pickle)       | 🟡 yes, but contained   | 🟢 impossible      |
-| `trust_remote_code` runs strangers' Python | 🔴 yes (in-process)   | 🟡 yes, but contained   | 🟢 not supported   |
+| Repository Python through SmartLLM          | 🟢 not supported      | 🟢 not supported        | 🟢 not supported   |
 | Anyone can publish a model                 | 🔴 yes (HF open)      | 🔴 yes (HF open)        | 🟢 curated library |
 | Damage reaches your `$HOME` / keys         | 🔴 yes                | 🟢 no                   | 🟢 no              |
 | Easy to wipe and start clean               | 🟠 manual             | 🟢 `docker rm`          | 🟢 `docker rm`     |
@@ -352,18 +350,18 @@ point it at `http://localhost:11434/v1`, and select your pulled model. Done.
 
 ## "But I trust this one model from this one author"
 
-That's fine — but please at least:
+SmartLLM does not provide a remote-code override, even for a trusted author.
+Choose one of these alternatives:
 
 1. Prefer `.safetensors` weights. Refuse `.bin` / `.pt` / `.pkl` from
    unknown authors.
-2. Avoid `trust_remote_code=True` unless the repo is a major lab
-   (Meta, Qwen, Google, Mistral, Microsoft) **and** you read the `.py`
-   files. Yes, actually read them.
-3. Even then: prefer running via Ollama / vLLM / SGLang / llama.cpp in
-   Docker. Almost every popular open model has a GGUF / Ollama version
-   within days of release.
-4. If you must run a model in-process, do it in a throwaway VM or a
-   dedicated user account with no access to your real files / keys.
+2. Use a model architecture already supported by the installed Transformers
+   package, or Florence through SmartLLM's local vendored implementation.
+3. Prefer an Ollama or GGUF build, or a vLLM/SGLang model that works without
+   repository-supplied Python.
+4. If custom repository code is unavoidable, use a separate tool in a
+   throwaway VM or dedicated user account with no access to your real files or
+   keys; SmartLLM intentionally will not execute it.
 
 ---
 

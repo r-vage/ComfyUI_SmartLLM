@@ -129,11 +129,14 @@ def _merge_backend(
                 f"Duplicate model name '{display_name}' — skipping (already registered)",
             )
             continue
+        sanitized_entry = {
+            key: value for key, value in entry.items() if key != "trust_remote_code"
+        }
         registry[display_name] = {
             "backend": backend,
             "name": name,
             "_registry_origin": origin,
-            **entry,
+            **sanitized_entry,
         }
 
 
@@ -537,7 +540,6 @@ def normalize_registry_candidate(
             )
         normalized["local_only"] = True
         normalized["available"] = True
-        normalized["trust_remote_code"] = False
     elif local_only:
         from .model_acquisition import validate_local_registry_path
 
@@ -545,7 +547,6 @@ def normalize_registry_candidate(
         normalized["local_path"] = validate_local_registry_path(
             candidate.get("local_path"), require_exists=True
         )
-        normalized["trust_remote_code"] = False
     else:
         source = candidate.get("source", "huggingface")
         if not isinstance(source, str) or source.lower().strip() not in {
@@ -578,21 +579,6 @@ def normalize_registry_candidate(
                 raise RegistryValidationError(
                     f"Unable to resolve immutable repository revision: {type(error).__name__}"
                 ) from error
-
-        trust_remote_code = candidate.get("trust_remote_code", False)
-        if not isinstance(trust_remote_code, bool):
-            raise RegistryValidationError("trust_remote_code must be a boolean")
-        if backend == "yolo":
-            trust_remote_code = False
-        if trust_remote_code:
-            revision = normalized.get("revision", "")
-            if not isinstance(revision, str) or not re.fullmatch(
-                r"[0-9a-fA-F]{40}", revision
-            ):
-                raise RegistryValidationError(
-                    "trust_remote_code requires a full immutable revision"
-                )
-            normalized["trust_remote_code"] = True
 
     if backend in {"gguf", "llamacpp"}:
         file_pattern = candidate.get("file_pattern")
@@ -992,40 +978,6 @@ def invalidate_cache():
     with _lock:
         _merged_registry = None
     log.debug(_LOG_PREFIX, "Registry cache invalidated")
-
-
-def is_trust_remote_code_allowed(display_name: str, override: bool = False) -> bool:
-    # Check whether a model is allowed to execute remote code from its HF repo
-    # (auto_map / modeling_*.py via transformers `trust_remote_code=True`).
-    #
-    # Security model:
-    #   - Default is False (safe). Only models explicitly flagged in their
-    #     registry entry (`"trust_remote_code": true`) are auto-allowed.
-    #   - `override` from the runtime "⚠ Trust Remote Code" chip can opt-in
-    #     additional models (user-added entries, new releases). It can only
-    #     enable, never disable, an already-allowed model.
-    if override:
-        return True
-    entry = get_model_entry(display_name)
-    if entry is None:
-        return False
-    if not entry.get("trust_remote_code", False):
-        return False
-
-    revision = entry.get("revision")
-    is_full_commit = (
-        isinstance(revision, str)
-        and len(revision) == 40
-        and all(character in "0123456789abcdefABCDEF" for character in revision)
-    )
-    if not is_full_commit:
-        log.warning(
-            _LOG_PREFIX,
-            f"Automatic remote-code trust denied for '{display_name}': "
-            "registry entry is not pinned to a full commit hash",
-        )
-        return False
-    return True
 
 
 # ============================================================================

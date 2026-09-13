@@ -289,6 +289,11 @@ HuggingFace Transformers — direct Python loading.
 | **Families** | All (Qwen, Mistral, Florence, LLaVA, VLM, LLM) |
 | **Best For** | Simplest setup |
 
+Repository-supplied Python model or processor code is unsupported. SmartLLM
+explicitly disables remote code at Transformers Auto-class boundaries. Florence
+uses SmartLLM's local vendored implementation; other models must use an
+architecture supported by the installed Transformers package.
+
 ### GGUF (llama-cpp-python)
 
 llama-cpp-python for GGUF format models.
@@ -312,6 +317,9 @@ High-performance inference server via Docker.
 | **Quantization** | FP8, AWQ, GPTQ (auto-detected) |
 | **Families** | Qwen, Mistral, LLM |
 | **Best For** | Pre-quantized FP8 models, continuous batching |
+
+SmartLLM never adds `--trust-remote-code` to vLLM launches. Models that require
+repository-supplied Python code are unsupported.
 
 ### SGLang (Docker)
 

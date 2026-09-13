@@ -716,10 +716,12 @@ python -c "import vllm; print(f'vLLM version: {vllm.__version__}')"
 # Start vLLM server with a small model for testing
 python -m vllm.entrypoints.openai.api_server \
     --model microsoft/Phi-3-mini-4k-instruct \
-    --trust-remote-code \
     --gpu-memory-utilization 0.8 \
     --port 8000
 ```
+
+SmartLLM never passes `--trust-remote-code` to vLLM. Choose a model supported
+without repository-supplied Python code.
 
 ### Creating a Startup Script
 

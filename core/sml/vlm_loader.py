@@ -961,12 +961,9 @@ def load_vlm_transformers(
     # ================================================================
     # Step 4: Build load kwargs and load model
     # ================================================================
-    # `trust_remote_code` defaults to False (safe). Set to True only when the
-    # registry entry (or the runtime chip) explicitly allows it for this model.
-    trust_remote_code = bool(kwargs.get("trust_remote_code", False))
     load_kwargs: dict[str, Any] = {
         "low_cpu_mem_usage": True,
-        "trust_remote_code": trust_remote_code,
+        "trust_remote_code": False,
         dtype_kwarg(): load_plan.dtype,
     }
     if attn_impl:
@@ -1183,7 +1180,7 @@ def load_vlm_transformers(
     # ================================================================
     from transformers import AutoProcessor  # type: ignore
 
-    processor = AutoProcessor.from_pretrained(model_path)
+    processor = AutoProcessor.from_pretrained(model_path, trust_remote_code=False)
     log.debug(_LOG_PREFIX, f"  Using AutoProcessor: {type(processor).__name__}")
 
     # Chat template fallback from tokenizer (useful for all models)
@@ -1191,7 +1188,9 @@ def load_vlm_transformers(
         try:
             from transformers import AutoTokenizer  # type: ignore
 
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_path, trust_remote_code=False
+            )
             if hasattr(tokenizer, "chat_template") and tokenizer.chat_template:
                 processor.chat_template = tokenizer.chat_template
                 log.debug(

@@ -95,22 +95,18 @@ reference when the encoder already receives that frame.
 
 ### Open the mode chip bar
 
-Click the green mode bar to change memory, prompt, advanced-runtime, trust, and
+Click the green mode bar to change memory, prompt, advanced-runtime, and
 model-maintenance behavior. Selected chips are serialized with the workflow;
 inactive sections stay hidden.
 
-![Annotated open Smart LM Loader mode chip bar](Readme/assets/mode-chip-bar.png)
-
 Available Smart LM modes are `Cleanup`, `Keep Loaded`, `Multi-Task`, `Training`,
-`Advanced`, `Use Advanced`, `⚠ Trust Remote Code`, and `Delete`.
+`Advanced`, `Use Advanced`, and `Delete`.
 
 - `Cleanup` and `Keep Loaded` control the model lifecycle between executions.
 - `Multi-Task` exposes a sequential task chain; `Training` adds curated
   task-specific examples to the prompt.
 - `Advanced` reveals sampling, device, and compile controls. `Use Advanced`
   decides whether the advanced sampling values are applied.
-- `⚠ Trust Remote Code` permits pinned repository Python code for the selected
-  model. Enable it only for a source you trust.
 - `Delete` reveals the separately confirmed local-file deletion action.
 
 ### Chain tasks in one execution
@@ -180,13 +176,11 @@ threshold and minimum-area controls instead of consuming JSON data.
 
 Open **SmartLLM → Open Smart LM Manager (Beta)**, use the **Smart LM Manager**
 left-toolbar launcher, or use the classic-menu button. The **Models** tab separates
-model identity and trust policy from each action you may take.
-
-![Annotated Smart LM Registry Manager showing search, identity, trust, and acquisition actions](Readme/assets/registry-manager.png)
+model identity from each action you may take.
 
 A registry entry can define its display name, backend, model family, repository
 or model ID, source, immutable revision, vision capability, local-only policy,
-remote-code permission, expected SHA-256 digests, and description.
+expected SHA-256 digests, and description.
 
 Use **Inspect** before **Save Entry** or **Download**. **Verify Local Files** does
 not download anything. **Delete Local Files** and **Remove Registry Entry** are
@@ -300,8 +294,11 @@ revisions, verifies integrity, commits atomically, and writes provenance records
 YOLO uses restricted loading, while managed Docker reuse is tied to immutable
 image and container-spec identity.
 
-Read [Security and model integrity](Readme/LLM_Security_Warning.md) before
-enabling remote repository code or adding an untrusted model source.
+Repository-supplied Python model code is unsupported. Transformers Auto-class
+loads explicitly deny remote code, vLLM is never launched with its remote-code
+flag, and Florence uses SmartLLM's local vendored implementation. Read
+[Security and model integrity](Readme/LLM_Security_Warning.md) before adding an
+untrusted model source.
 
 ## Guides
 

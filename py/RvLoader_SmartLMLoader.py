@@ -52,7 +52,6 @@ from ..core.sml.model_registry import (
     get_model_entry,
     get_model_list,
     is_model_separator,
-    is_trust_remote_code_allowed,
     load_defaults,
     save_defaults,
 )
@@ -1668,14 +1667,6 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                     tooltip="Append task-specific few-shot training examples (prompt/response pairs) to the context. "
                     "Helps the model follow formatting instructions but increases token count.",
                 ),
-                io.Boolean.Input(
-                    "trust_remote_code",
-                    default=False,
-                    label_on="ON",
-                    label_off="OFF",
-                    tooltip="⚠ SECURITY: Permits execution of custom modeling code from the Hugging Face model repository. "
-                    "ONLY enable this for trusted models. Pre-approved models (e.g. Florence-2, Ministral) are automatically trusted.",
-                ),
                 # ── Connection slots ──────────────────────────────────
                 io.Image.Input(
                     "images",
@@ -1768,7 +1759,6 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         show_advanced,
         use_advanced,
         use_few_shot_training,
-        trust_remote_code,
         # Advanced sampling extras (appended widgets)
         min_p,
         mirostat,
@@ -1874,7 +1864,6 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
         show_advanced = _unwrap_scalar(show_advanced, False)
         use_advanced = _unwrap_scalar(use_advanced, True)
         use_few_shot_training = _unwrap_scalar(use_few_shot_training, True)
-        trust_remote_code = _unwrap_scalar(trust_remote_code, False)
         min_p = _unwrap_scalar(min_p, 0.0)
         mirostat = _unwrap_scalar(mirostat, "0 (off)")
         mirostat_eta = _unwrap_scalar(mirostat_eta, 0.1)
@@ -2014,23 +2003,6 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                 "to inspect its reference image(s)."
             )
 
-        # ── trust_remote_code policy ─────────────────────────────
-        # Effective value = registry flag OR runtime chip override. Default False
-        # (safe). Registry pre-flags models that legitimately need remote code
-        # execution (Florence-2, Mistral-3/Pixtral); the chip is the runtime
-        # opt-in for user-added or newly-released models.
-        effective_trust_remote_code = is_trust_remote_code_allowed(
-            model, override=bool(trust_remote_code)
-        )
-        if effective_trust_remote_code:
-            source = "registry" if not trust_remote_code else "chip override"
-            log.warning(
-                _LOG_PREFIX,
-                f"trust_remote_code=True for '{model}' (source: {source}) — "
-                "repository Python code is permitted to execute in-process if "
-                "the selected Transformers implementation requires it",
-            )
-
         log.msg(
             _LOG_PREFIX, f"Model: {model} | backend={backend} | family={model_family}"
         )
@@ -2160,7 +2132,6 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
             memory_cleanup=memory_cleanup,
             keep_model_loaded=keep_model_loaded,
             use_torch_compile=use_torch_compile,
-            trust_remote_code=effective_trust_remote_code,
             repo_id=repo_id,
             revision=entry.get("revision"),
             expected_sha256=entry.get("expected_sha256"),

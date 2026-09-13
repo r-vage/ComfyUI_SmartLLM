@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-09-13
+
+### Version: 1.0.17
+
+- **Breaking**
+  - Remove remote-code options from Smart LM Loader, Registry Manager, model registries, and Docker configuration; models that require repository-supplied Python code are now unsupported.
+
+- **Fix**
+  - Normalize canonical 36-value and frontend-expanded 41-value Smart LM Loader workflows to the 35-value schema before node configuration, discarding only retired or UI-only values while preserving every retained value exactly; also repair interim 40-value saves.
+  - Close and reopen workflows that were already open during the update; refreshing the browser alone may retain the stale in-memory graph.
+  - Explicitly deny remote code at Transformers Auto-class boundaries, keep Florence on its local vendored model and processor implementations, and prevent vLLM plans from emitting the remote-code flag.
+
+- **Docs**
+  - Document the unsupported remote-code boundary and the safe alternatives in the loader, Registry Manager, Docker, and security guides.
+
+**Changed files:**
+- `.defaults/.manifest.json`
+- `.defaults/docker_config.json.example`
+- `.defaults/registry/transformers_models.json.example`
+- `.defaults/registry/vllm_models.json.example`
+- `README.md`
+- `Readme/Docker_Installation_Guide.md`
+- `Readme/Docker_Installation_Guide_Linux.md`
+- `Readme/LLM_Security_Warning.md`
+- `Readme/Registry_Manager.md`
+- `Readme/Smart_LM_Loader_Guide.md`
+- `core/sml/backend_vllm_docker.py`
+- `core/sml/backend_vllm_native.py`
+- `core/sml/florence2_wrapper.py`
+- `core/sml/loader_base.py`
+- `core/sml/model_registry.py`
+- `core/sml/vlm_loader.py`
+- `js/smartllm-loader-compat.js`
+- `js/smartllm-loader.js`
+- `js/smartllm-registry-manager.js`
+- `py/RvLoader_SmartDetection.py`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
 ## 2026-09-11
 
 ### Version: 1.0.16

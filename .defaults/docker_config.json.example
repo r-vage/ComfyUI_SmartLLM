@@ -4,10 +4,9 @@
   "_comment_backend": "Options: 'vllm' (default), 'sglang' (alternative to vLLM), 'ollama' (for GGUF/Mistral3), 'llamacpp' (for GGUF)",
   "gpu_memory_utilization": 0.6,
   "dtype": "auto",
-  "trust_remote_code": false,
   "docker_bind_host": "127.0.0.1",
   "allow_unpinned_docker_images": false,
-  "_comment_global": "gpu_memory_utilization: VRAM fraction (0.0-1.0). dtype: model loading dtype. trust_remote_code: SECURITY — when false (default), only per-model registry flags allow HuggingFace remote-code execution; the runtime '⚠ Trust Remote Code' chip on the Smart LM Loader node overrides this at load time. docker_bind_host: SECURITY — host interface containers bind to. Default '127.0.0.1' keeps the unauthenticated OpenAI-compatible APIs local-only. Set to '0.0.0.0' only if you want LAN access (at your own risk). Docker containers auto-start when needed. Stop after generation is controlled by the node widget.",
+  "_comment_global": "gpu_memory_utilization: VRAM fraction (0.0-1.0). dtype: model loading dtype. docker_bind_host: SECURITY — host interface containers bind to. Default '127.0.0.1' keeps the unauthenticated OpenAI-compatible APIs local-only. Set to '0.0.0.0' only if you want LAN access (at your own risk). Docker containers auto-start when needed. Stop after generation is controlled by the node widget. Repository-supplied Python model code is unsupported.",
   "_comment_image_policy": "Managed backend images use release-tested tag-plus-digest references. Custom pinned references are allowed. Set allow_unpinned_docker_images to true only for intentional development with mutable/custom tags; SmartLLM logs a security warning and reproducibility is disabled.",
   "vllm": {
     "docker_image": "vllm/vllm-openai:v0.15.1@sha256:8c9aaddfa6011b9651d06834d2fb90bdb9ab6ced4b420ec76925024eb12b22d0",

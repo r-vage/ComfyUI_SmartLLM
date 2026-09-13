@@ -414,7 +414,7 @@ def _registry_provenance_cache_token(
     revision: object,
     expected_sha256: object,
 ) -> Optional[str]:
-    # Include mutable registry trust inputs in cache identity without exposing
+    # Include mutable registry provenance inputs in cache identity without exposing
     # the full digest mapping in cache logs.
     if revision is None and expected_sha256 is None:
         return None
@@ -457,6 +457,9 @@ def load_model_with_backend(
     #     Loaded model, processor/tokenizer tuple, and detected ModelType
     from . import backend_vllm_docker
     from . import florence2_wrapper
+
+    # Ignore the retired private keyword if an older caller still supplies it.
+    kwargs.pop("trust_remote_code", None)
 
     # Only import native vLLM when needed (it prints warnings on Windows)
     backend_vllm_native = None
@@ -927,7 +930,6 @@ def load_model_with_backend(
             model_path,
             quantization=quantization,
             context_size=context_size,
-            trust_remote_code=bool(kwargs.get("trust_remote_code", False)),
             use_torch_compile=bool(kwargs.get("use_torch_compile", False)),
             model_provenance=provenance_cache_token,
             tensor_parallel_size=kwargs.get("tensor_parallel_size"),
@@ -1011,7 +1013,6 @@ def load_model_with_backend(
             model_path,
             quantization=quantization,
             context_size=context_size,
-            trust_remote_code=bool(kwargs.get("trust_remote_code", False)),
             use_torch_compile=bool(kwargs.get("use_torch_compile", False)),
         )
         if vllm_info is None:
@@ -1686,12 +1687,10 @@ def load_model_with_backend(
 
             model = florence2_wrapper.load_florence2_model(
                 model_path,
-                trust_remote_code=bool(kwargs.get("trust_remote_code", False)),
                 **florence_kwargs,
             )
             processor = florence2_wrapper.load_florence2_processor(
                 model_path,
-                trust_remote_code=bool(kwargs.get("trust_remote_code", False)),
             )
 
             # Apply torch.compile if requested (non-quantized only)
@@ -1752,7 +1751,10 @@ def load_model_with_backend(
             log.msg(_LOG_PREFIX, f"Loading LLM ({quantization}, {attn_impl})")
 
             # Build common kwargs
-            load_kwargs: dict[str, Any] = {"device_map": "auto"}
+            load_kwargs: dict[str, Any] = {
+                "device_map": "auto",
+                "trust_remote_code": False,
+            }
             if attn_impl:
                 load_kwargs["attn_implementation"] = attn_impl
 
@@ -1783,7 +1785,9 @@ def load_model_with_backend(
                 load_kwargs[dtype_kwarg()] = dtype_map.get(quantization, "auto")
                 model = AutoModelForCausalLM.from_pretrained(model_path, **load_kwargs)
 
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            tokenizer = AutoTokenizer.from_pretrained(
+                model_path, trust_remote_code=False
+            )
 
             # Apply torch.compile if requested (non-quantized only)
             use_torch_compile = kwargs.get("use_torch_compile", False)

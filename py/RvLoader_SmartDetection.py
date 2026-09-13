@@ -51,7 +51,6 @@ from ..core.sml.model_registry import (
     get_detection_model_list,
     get_model_entry,
     is_model_separator,
-    is_trust_remote_code_allowed,
     load_defaults,
     save_defaults,
 )
@@ -1235,7 +1234,6 @@ class RvLoader_Detection(io.ComfyNode):
                 memory_cleanup=cleanup,
                 keep_model_loaded=keep_model_loaded,
                 use_torch_compile=use_torch_compile,
-                trust_remote_code=is_trust_remote_code_allowed(name),
                 repo_id=repo_id,
                 revision=entry.get("revision"),
                 expected_sha256=entry.get("expected_sha256"),
@@ -1322,7 +1320,6 @@ class RvLoader_Detection(io.ComfyNode):
                 memory_cleanup=cleanup,
                 keep_model_loaded=keep_model_loaded,
                 use_torch_compile=use_torch_compile,
-                trust_remote_code=is_trust_remote_code_allowed(name),
                 repo_id=repo_id,
                 revision=entry.get("revision"),
                 expected_sha256=entry.get("expected_sha256"),

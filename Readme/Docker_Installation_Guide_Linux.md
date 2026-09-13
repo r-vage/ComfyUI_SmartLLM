@@ -343,7 +343,6 @@ SmartLLM's Docker settings live in `ComfyUI_SmartLLM/docker_config.json`. Key se
 ```jsonc
 {
   "gpu_memory_utilization": 0.6,        // Fraction of VRAM to use (global)
-  "trust_remote_code": true,            // Trust remote code for HuggingFace models
   "allow_unpinned_docker_images": false, // Keep false outside intentional development
 
   "vllm": {
@@ -367,6 +366,9 @@ SmartLLM's Docker settings live in `ComfyUI_SmartLLM/docker_config.json`. Key se
   // ... sglang, llamacpp sections similar
 }
 ```
+
+SmartLLM never passes `--trust-remote-code` to vLLM. Models that require
+repository-supplied Python code are unsupported.
 
 ### Port reference
 

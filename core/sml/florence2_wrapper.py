@@ -1,25 +1,21 @@
 # Florence-2 Wrapper for SmartLLM
 #
-# This module provides graceful loading support for Florence-2 models with fallback.
+# This module provides local vendored loading support for Florence-2 models.
 # Uses vendored Florence-2 implementation from extern/florence2/ (no external custom node dependency).
 #
 # Key Features:
 # - Vendored Florence-2 model/config/processor from ComfyUI-Florence2
-# - Graceful fallback to transformers AutoModel
-# - Support for custom model implementations
 # - Transformers v5 support via accelerate manual loading
 # - Backward compatibility with transformers v4
 
 import gc
 import importlib.util
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import torch  # type: ignore
-import transformers  # type: ignore
 
 from .device import (
     auto_select_quantization,
@@ -533,10 +529,8 @@ try:
     log.msg(_LOG_PREFIX, "✓ Custom Florence-2 classes imported successfully")
 except ImportError as e:
     log.warning(_LOG_PREFIX, f"Could not import custom Florence-2: {e}")
-    log.warning(_LOG_PREFIX, "Will fall back to transformers AutoModel")
 except Exception as e:
     log.warning(_LOG_PREFIX, f"Could not import custom Florence-2: {e}")
-    log.warning(_LOG_PREFIX, "Will fall back to transformers AutoModel")
 
 
 def _load_florence2_v5(
@@ -674,24 +668,19 @@ def _load_florence2_processor_v5(model_path: str) -> Any:
 
 
 def load_florence2_model(model_path: str, **load_kwargs) -> Any:
-    # Load Florence-2 model with custom implementation if available, fallback to AutoModel.
+    # Load Florence-2 with SmartLLM's vendored implementation.
     # Supports both local model paths and HuggingFace repo IDs.
     # On transformers v5+, uses accelerate-based manual loading.
     #
     # Args:
     #     model_path: Path to local model directory or HuggingFace repo ID
     #     **load_kwargs: Additional arguments for from_pretrained (dtype, device_map, etc.)
-    #         Also accepts `trust_remote_code` (bool, default False) — passed to
-    #         HuggingFace from_pretrained to allow auto_map/modeling_*.py execution.
     #
     # Returns:
     #     Loaded Florence-2 model
 
-    # Extract trust_remote_code from load_kwargs (default False = safe). When False,
-    # the v4 AutoModel fallback path still requires True for Florence-2 to load at
-    # all (architecture not in transformers core) — caller controls this via the
-    # registry flag or the runtime chip.
-    trust_remote_code = bool(load_kwargs.pop("trust_remote_code", False))
+    # Ignore the retired private keyword if an older caller still supplies it.
+    load_kwargs.pop("trust_remote_code", None)
     repo_id = load_kwargs.pop("repo_id", "")
     revision = load_kwargs.pop("revision", None)
     expected_sha256_map = load_kwargs.pop("expected_sha256_map", None)
@@ -795,188 +784,35 @@ def load_florence2_model(model_path: str, **load_kwargs) -> Any:
         raise RuntimeError("No compatible Florence-2 attention mode was available.")
 
     # ========================================================================
-    # Transformers v4 path: Custom from_pretrained or AutoModel fallback
+    # Transformers v4 path: vendored from_pretrained implementation
     # ========================================================================
-
-    # Try custom implementation first
-    if FLORENCE2_CUSTOM_AVAILABLE and Florence2ForConditionalGeneration:
-        try:
-            log.msg(
-                _LOG_PREFIX,
-                f"Loading from {source} with custom implementation: {model_path}",
-            )
-            model = Florence2ForConditionalGeneration.from_pretrained(
-                model_path,
-                local_files_only=is_local,  # Prevent online lookup for local models
-                **load_kwargs,
-            )
-            log.debug(_LOG_PREFIX, "Loaded with custom implementation")
-        except Exception as e:
-            log.warning(_LOG_PREFIX, f"Custom implementation failed: {e}")
-            log.warning(_LOG_PREFIX, "Falling back to AutoModel...")
-        else:
-            return _finalize_loaded_florence(
-                model,
-                device=target_device,
-                dtype=dtype,
-                quantization=effective_quantization,
-                attention=requested_attn,
-            )
-
-    # Fallback to AutoModel (v4 only)
-    from transformers import AutoModelForCausalLM  # type: ignore
+    if not FLORENCE2_CUSTOM_AVAILABLE or not Florence2ForConditionalGeneration:
+        raise RuntimeError(
+            "Florence-2 requires SmartLLM's vendored implementation; "
+            "repository-supplied Python model code is unsupported."
+        )
 
     log.msg(
-        _LOG_PREFIX, f"Loading from {source} with AutoModelForCausalLM: {model_path}"
+        _LOG_PREFIX,
+        f"Loading from {source} with vendored implementation: {model_path}",
     )
-
-    # Apply workaround context manager if needed (for transformers < 4.51.0)
-    if transformers.__version__ < "4.51.0":
-        from unittest.mock import patch
-
-        from transformers.dynamic_module_utils import get_imports  # type: ignore
-
-        def fixed_get_imports(filename):
-            # Workaround for unnecessary flash_attn requirement
-            imports = []
-            try:
-                if not str(filename).endswith("modeling_florence2.py"):
-                    return get_imports(filename)
-                imports = get_imports(filename)
-                if "flash_attn" in imports:
-                    imports.remove("flash_attn")
-            except Exception:
-                pass
-            return imports
-
-        log.msg(
-            _LOG_PREFIX,
-            f"Applying flash_attn workaround for transformers {transformers.__version__}",
-        )
-        load_context = patch(
-            "transformers.dynamic_module_utils.get_imports", fixed_get_imports
-        )
-    else:
-        from contextlib import nullcontext
-
-        load_context = nullcontext()
-
-    with load_context:
-        if requested_attn == "flash_attention_2":
-            try:
-                log.msg(_LOG_PREFIX, "Attempting Flash Attention 2...")
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    trust_remote_code=trust_remote_code,
-                    local_files_only=is_local,
-                    **load_kwargs,
-                )
-                log.msg(_LOG_PREFIX, "✓ Loaded with Flash Attention 2")
-                return _finalize_loaded_florence(
-                    model,
-                    device=target_device,
-                    dtype=dtype,
-                    quantization=effective_quantization,
-                    attention="flash_attention_2",
-                )
-            except (ValueError, ImportError) as e:
-                if "does not support Flash Attention 2.0" in str(
-                    e
-                ) or "flash_attn" in str(e):
-                    if requested_attention_mode != "auto":
-                        raise
-                    log.warning(
-                        _LOG_PREFIX,
-                        "Flash Attention 2 not supported by cached model code",
-                    )
-                    log.error(
-                        _LOG_PREFIX,
-                        "Your Florence-2 model uses outdated cached code from HuggingFace",
-                    )
-
-                    cache_hint = os.path.join(
-                        os.path.expanduser("~"),
-                        ".cache",
-                        "huggingface",
-                        "modules",
-                        "transformers_modules",
-                    )
-                    model_name = (
-                        Path(model_path).name if is_local else model_path.split("/")[-1]
-                    )
-
-                    log.error(
-                        _LOG_PREFIX,
-                        "To update: Delete cached folder and restart ComfyUI:",
-                    )
-                    log.error(_LOG_PREFIX, f"  Location: {cache_hint}/{model_name}")
-                    log.warning(
-                        _LOG_PREFIX,
-                        "Falling back to SDPA (still faster than eager mode)",
-                    )
-
-                    load_kwargs["attn_implementation"] = "sdpa"
-                else:
-                    raise
-
-        # Load with requested attention mode (or fallback to sdpa)
-        try:
-            model = AutoModelForCausalLM.from_pretrained(
-                model_path,
-                trust_remote_code=trust_remote_code,
-                local_files_only=is_local,
-                **load_kwargs,
-            )
-        except AttributeError as e:
-            if "_supports_sdpa" in str(e):
-                if requested_attention_mode != "auto":
-                    raise
-                log.warning(
-                    _LOG_PREFIX,
-                    "Model lacks SDPA support attribute, falling back to eager attention",
-                )
-                load_kwargs["attn_implementation"] = "eager"
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_path,
-                    trust_remote_code=trust_remote_code,
-                    local_files_only=is_local,
-                    **load_kwargs,
-                )
-            else:
-                raise
-
-    # Add _supports_sdpa to model class if not present (custom models from HF may lack it)
-    if not hasattr(type(model), "_supports_sdpa"):
-        log.warning(
-            _LOG_PREFIX, f"Adding _supports_sdpa=True to {type(model).__name__}"
-        )
-        type(model)._supports_sdpa = True
-
-    # Also patch language_model subcomponent if it exists (for Florence2ForConditionalGeneration)
-    if hasattr(model, "language_model") and not hasattr(
-        type(model.language_model), "_supports_sdpa"
-    ):
-        log.warning(
-            _LOG_PREFIX,
-            f"Adding _supports_sdpa=True to {type(model.language_model).__name__}",
-        )
-        type(model.language_model)._supports_sdpa = True
-
-    attn_used = load_kwargs.get("attn_implementation", "auto")
-    log.msg(
-        _LOG_PREFIX, f"✓ Loaded with AutoModel from {source}, attention={attn_used}"
+    model = Florence2ForConditionalGeneration.from_pretrained(
+        model_path,
+        local_files_only=is_local,
+        **load_kwargs,
     )
+    log.debug(_LOG_PREFIX, "Loaded with vendored implementation")
     return _finalize_loaded_florence(
         model,
         device=target_device,
         dtype=dtype,
         quantization=effective_quantization,
-        attention=attn_used,
+        attention=requested_attn,
     )
 
 
 def load_florence2_processor(model_path: str, **kwargs) -> Any:
-    # Load Florence-2 processor with custom implementation if available, fallback to AutoProcessor.
+    # Load Florence-2 processor with SmartLLM's vendored implementation.
     # Supports both local model paths and HuggingFace repo IDs.
     # On transformers v5+, constructs processor manually.
     #
@@ -994,45 +830,22 @@ def load_florence2_processor(model_path: str, **kwargs) -> Any:
         return _load_florence2_processor_v5(model_path)
 
     # ========================================================================
-    # Transformers v4 path: Custom from_pretrained or AutoProcessor fallback
+    # Transformers v4 path: vendored from_pretrained implementation
     # ========================================================================
 
     # Determine if loading from local path or remote
     model_path_obj = Path(model_path)
     is_local = model_path_obj.exists()
 
-    # Check if the local folder has the required dynamic module file for the processor
-    # If not (e.g., models from comfyui-florence2 node), we need to allow online lookup
-    has_processor_module = (
-        is_local and (model_path_obj / "processing_florence2.py").exists()
+    kwargs.pop("trust_remote_code", None)
+    if not FLORENCE2_CUSTOM_AVAILABLE or not Florence2Processor:
+        raise RuntimeError(
+            "Florence-2 requires SmartLLM's vendored processor; "
+            "repository-supplied Python processor code is unsupported."
+        )
+    return Florence2Processor.from_pretrained(
+        model_path, local_files_only=is_local, **kwargs
     )
-    local_files_only = (
-        has_processor_module  # Only force local if we have all required files
-    )
-
-    # Try custom processor first
-    if FLORENCE2_CUSTOM_AVAILABLE and Florence2Processor:
-        try:
-            processor = Florence2Processor.from_pretrained(
-                model_path, local_files_only=local_files_only, **kwargs
-            )
-            return processor
-        except Exception as e:
-            log.warning(
-                _LOG_PREFIX, f"Custom processor failed: {e}, using AutoProcessor"
-            )
-
-    # v4 fallback: Use AutoProcessor — caller controls trust_remote_code via kwarg
-    trust_remote_code = bool(kwargs.pop("trust_remote_code", False))
-    from transformers import AutoProcessor  # type: ignore
-
-    processor = AutoProcessor.from_pretrained(
-        model_path,
-        trust_remote_code=trust_remote_code,
-        local_files_only=local_files_only,
-        **kwargs,
-    )
-    return processor
 
 
 # Export public API

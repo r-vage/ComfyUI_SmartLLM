@@ -23,7 +23,6 @@
     "revision": "68faf511d618ef198fef186659617cfd2eb8e33a",
     "family": "Mistral",
     "has_vision": true,
-    "tensor_parallel": 2,
-    "trust_remote_code": true
+    "tensor_parallel": 2
   }
 }

@@ -21,6 +21,7 @@ import {
 } from './smartllm-seed-utils.js';
 import { onSmartLLMRegistryChanged } from './smartllm-registry-events.js';
 import { migrateLegacyTaskWidget } from './smartllm-task-compat.js';
+import { installRetiredTrustRemoteCodeMigration } from './smartllm-loader-compat.js';
 const NODE_NAME = "Smart LM Loader [Eclipse]";
 const LEGACY_NODE_NAMES = new Set([
     "Smart Language Model Loader v2 [SmartLML]",
@@ -46,9 +47,6 @@ const MODE_OPTIONS = [{
     label: 'Use Advanced',
     tooltip: 'Force applying advanced sampling parameters. When disabled, safe/conservative defaults are used'
 }, {
-    label: '⚠ Trust Remote Code',
-    tooltip: '⚠ SECURITY OVERRIDE: Allow Hugging Face models to run custom Python modeling code locally. Only enable for trusted models'
-}, {
     label: 'Delete',
     tooltip: 'Show button to permanently delete the selected model files from local storage'
 }, ];
@@ -60,7 +58,6 @@ const MODE_TO_BACKING = {
     'Training': 'use_few_shot_training',
     'Advanced': 'show_advanced',
     'Use Advanced': 'use_advanced',
-    '⚠ Trust Remote Code': 'trust_remote_code',
 };
 const SPECIAL_SEED_RANDOM = -1;
 const SPECIAL_SEED_INCREMENT = -2;
@@ -255,6 +252,7 @@ const smartLLMLoaderExtension = {
             };
             return;
         }
+        installRetiredTrustRemoteCodeMigration(nodeType);
         const onNodeCreated = nodeType.prototype.onNodeCreated;
         nodeType.prototype.onNodeCreated = function() {
             const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
@@ -273,7 +271,6 @@ const smartLLMLoaderExtension = {
                 'memory_cleanup', 'keep_model_loaded', 'multi_task_mode', 'show_advanced',
                 'use_advanced',
                 'use_few_shot_training',
-                'trust_remote_code',
             ]);
             const getWidget = (name) => node.widgets?.find(w => w.name === name);
             const setWidgetValue = (name, value) => {
@@ -318,6 +315,7 @@ const smartLLMLoaderExtension = {
                 radioToggle: false,
                 serialize: false,
             });
+            modeBarWidget.serialize = false;
             node._SmartLLM_modeBarWidget = modeBarWidget;
 
             function syncModeToBacking(selectedSet) {
@@ -450,6 +448,7 @@ const smartLLMLoaderExtension = {
             }, {
                 serialize: false
             });
+            deleteBtn.serialize = false;
             deleteBtn.hidden = true;
             if (deleteBtn.options) deleteBtn.options.hidden = true;
             {
@@ -700,6 +699,9 @@ const smartLLMLoaderExtension = {
                 }, {
                     serialize: false
                 });
+                randomizeBtn.serialize = false;
+                newRandomBtn.serialize = false;
+                lastSeedBtn.serialize = false;
                 lastSeedBtn.disabled = true;
                 node._SmartLLM_lastSeedBtn = lastSeedBtn;
                 // The three seed buttons are appended after the seed widget by
