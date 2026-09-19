@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-09-19
+
+### Version: 1.0.19
+
+- **Fix**
+  - Restore Smart LM Loader frontend registration, keep Loader and Smart Detection metadata bound to the newest model selection, and route both Delete buttons through their visibility managers.
+  - Move Detection to Bboxes onto the shared visibility manager with pre-hiding, load-aware initialization, user-driven updates, and correctly restored workflow state.
+
+- **Perf**
+  - Replace Loader and Smart Detection's fixed initialization/configuration delays with ID-ready fresh-node animation frames and immediate workflow configuration.
+
+- **Refactor**
+  - Resolve the three supported custom LLaVA architectures through lazy named imports instead of a scanner-ambiguous dynamic import while preserving standard Transformers delegation and fallbacks.
+
+**Changed files:**
+- `core/sml/vlm_loader.py`
+- `js/smartllm-detection-to-bboxes.js`
+- `js/smartllm-detection.js`
+- `js/smartllm-loader.js`
+- `pyproject.toml`
+
 ## 2026-09-13
 
 ### Version: 1.0.18

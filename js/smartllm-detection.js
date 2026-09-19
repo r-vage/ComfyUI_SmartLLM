@@ -6,6 +6,7 @@ import {
     debounce,
     notifyVue,
     createWidgetVisibilityManager,
+    isConfiguringGraph,
     smartResize,
     isVueMode,
 } from './smartllm-widget-performance-utils.js';
@@ -228,13 +229,16 @@ const smartLLMDetectionExtension = {
                 vis.setVisible(backing, false);
             }
             let currentFamily = '';
+            let modelChangeSequence = 0;
             async function onModelChanged(modelName) {
+                const sequence = ++modelChangeSequence;
                 const backend = getBackendFromName(modelName);
                 const isGGUF = backend === 'gguf' || backend === 'llamacpp';
                 let entry = null;
                 if (modelName && !isSeparatorEntry(modelName)) {
                     entry = await fetchModelEntry(modelName);
                 }
+                if (sequence !== modelChangeSequence) return;
                 currentFamily = entry?.family || '';
                 if (isGGUF && entry?.quantizations?.length) {
                     updateDropdown(quantWidget, entry.quantizations, entry.quantizations[0]);
@@ -312,8 +316,7 @@ const smartLLMDetectionExtension = {
             }, {
                 serialize: false
             });
-            deleteBtn.hidden = true;
-            if (deleteBtn.options) deleteBtn.options.hidden = true;
+            vis.hideInitially([deleteBtn.name]);
             {
                 const quantIdx = getWidget('quantization') ? node.widgets.indexOf(getWidget('quantization')) : -1;
                 const modelIdx = modelWidget ? node.widgets.indexOf(modelWidget) : -1;
@@ -366,10 +369,7 @@ const smartLLMDetectionExtension = {
                     vis.setVisible(backing, false);
                 }
                 const showDelete = modeSet.has('Delete') && modelName && !isSeparatorEntry(modelName);
-                if (deleteBtn) {
-                    deleteBtn.hidden = !showDelete;
-                    if (deleteBtn.options) deleteBtn.options.hidden = !showDelete;
-                }
+                if (deleteBtn) vis.setVisible(deleteBtn.name, showDelete);
                 smartResize(node);
             }
             node._SmartLLMDetection_lastSeed = undefined;
@@ -466,44 +466,43 @@ const smartLLMDetectionExtension = {
                     return result;
                 };
             }
-            setTimeout(() => {
-                if (node._SmartLLMDetection_initialized) return;
+            if (!node._SmartLLMDetection_initialized && !isConfiguringGraph()) {
                 node._SmartLLMDetection_initialized = true;
-                if (node._SmartLLMDetection_configuredFromWorkflow) return;
-                if (modelWidget && isSeparatorEntry(modelWidget.value)) {
-                    const opts = modelWidget.options?.values || [];
-                    const first = opts.find(v => !isSeparatorEntry(v));
-                    if (first) modelWidget.value = first;
-                }
-                updateAllVisibility();
-                // Sync size-shrink — smartResize's async rAF pass leaves a
-                // visible tall-node gap on fresh add (hideInitially pre-hid
-                // ~15 widgets before Vue's first computeSize() pass).
-                const _oldH = node.size[1];
-                node.size[1] = 0;
-                const _c = node.computeSize();
-                if (_c[1] !== _oldH) node.setSize?.([node.size[0], _c[1]]);
-                else node.size[1] = _oldH;
-                (async () => {
-                    if (modelWidget?.value) {
-                        await onModelChanged(modelWidget.value);
+                requestAnimationFrame(() => {
+                    if (node._SmartLLMDetection_configuredFromWorkflow) return;
+                    if (modelWidget && isSeparatorEntry(modelWidget.value)) {
+                        const opts = modelWidget.options?.values || [];
+                        const first = opts.find(v => !isSeparatorEntry(v));
+                        if (first) modelWidget.value = first;
                     }
-                })();
-            }, 0);
+                    updateAllVisibility();
+                    // Sync size-shrink — smartResize's async rAF pass leaves a
+                    // visible tall-node gap on fresh add (hideInitially pre-hid
+                    // ~15 widgets before Vue's first computeSize() pass).
+                    const oldHeight = node.size[1];
+                    node.size[1] = 0;
+                    const computed = node.computeSize();
+                    if (computed[1] !== oldHeight) {
+                        node.setSize?.([node.size[0], computed[1]]);
+                    } else {
+                        node.size[1] = oldHeight;
+                    }
+                    if (modelWidget?.value) {
+                        void onModelChanged(modelWidget.value);
+                    }
+                });
+            }
             const origOnConfigure = node.onConfigure;
-            node.onConfigure = function(info) {
+            node.onConfigure = function() {
                 node._SmartLLMDetection_configuredFromWorkflow = true;
                 if (origOnConfigure) origOnConfigure.apply(this, arguments);
-                setTimeout(async () => {
-                    if (modeBarWidget) {
-                        modeBarWidget.value = readModeFromBacking();
-                    }
-                    if (modelWidget?.value) {
-                        await onModelChanged(modelWidget.value);
-                    } else {
-                        updateAllVisibility();
-                    }
-                }, 150);
+                if (modeBarWidget) {
+                    modeBarWidget.value = readModeFromBacking();
+                }
+                updateAllVisibility();
+                if (modelWidget?.value) {
+                    void onModelChanged(modelWidget.value);
+                }
             };
             return r;
         };

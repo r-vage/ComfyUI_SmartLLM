@@ -150,7 +150,7 @@ async function fetchModelList(force = false) {
             } else {
                 console.warn('[SmartLLM] Failed to fetch model list');
                 modelListCache = [];
-            } 4.7
+            }
         } catch (e) {
             console.warn('[SmartLLM] Error fetching model list:', e);
             modelListCache = [];
@@ -351,14 +351,19 @@ const smartLLMLoaderExtension = {
                 vis.setVisible(backing, false);
             }
             let currentModelEntry = null;
+            let modelChangeSequence = 0;
             async function onModelChanged(modelName) {
+                const sequence = ++modelChangeSequence;
                 const backend = getBackendFromName(modelName);
                 const isWD14 = backend === 'wd14';
                 const isGGUF = backend === 'gguf' || backend === 'llamacpp';
                 currentModelEntry = null;
+                let entry = null;
                 if (modelName) {
-                    currentModelEntry = await fetchModelEntry(modelName);
+                    entry = await fetchModelEntry(modelName);
                 }
+                if (sequence !== modelChangeSequence) return;
+                currentModelEntry = entry;
                 if (isGGUF && currentModelEntry?.quantizations?.length) {
                     updateDropdown(quantizationWidget, currentModelEntry.quantizations, currentModelEntry.quantizations[0]);
                 }
@@ -366,12 +371,15 @@ const smartLLMLoaderExtension = {
                 if (!isWD14) {
                     const hasVision = currentModelEntry?.has_vision ?? true;
                     const family = currentModelEntry?.family || '';
-                    const tasks = await fetchTaskList(hasVision, family);
+                    const [tasks, textTasks] = await Promise.all([
+                        fetchTaskList(hasVision, family),
+                        fetchTaskList(false, ''),
+                    ]);
+                    if (sequence !== modelChangeSequence) return;
                     const taskWidget = getWidget('task');
                     if (taskWidget && tasks.length) {
                         updateTaskDropdown(taskWidget, tasks);
                     }
-                    const textTasks = await fetchTaskList(false, '');
                     const noneTextTasks = ['None', ...mapTaskSeparators(textTasks)];
                     for (const tName of ['task_2', 'task_3', 'task_4']) {
                         const tw = getWidget(tName);
@@ -449,8 +457,7 @@ const smartLLMLoaderExtension = {
                 serialize: false
             });
             deleteBtn.serialize = false;
-            deleteBtn.hidden = true;
-            if (deleteBtn.options) deleteBtn.options.hidden = true;
+            vis.hideInitially([deleteBtn.name]);
             {
                 const quantIdx = quantizationWidget ? node.widgets.indexOf(quantizationWidget) : -1;
                 const modelIdx = modelWidget ? node.widgets.indexOf(modelWidget) : -1;
@@ -582,10 +589,7 @@ const smartLLMLoaderExtension = {
                     vis.setVisible(backing, false);
                 }
                 const showDelete = modeSet.has('Delete') && modelName && !isSeparatorEntry(modelName);
-                if (deleteBtn) {
-                    deleteBtn.hidden = !showDelete;
-                    if (deleteBtn.options) deleteBtn.options.hidden = !showDelete;
-                }
+                if (deleteBtn) vis.setVisible(deleteBtn.name, showDelete);
                 vis.setVisible('seed', true);
 
                 // Smart resize logic:
@@ -717,44 +721,43 @@ const smartLLMLoaderExtension = {
                     return result;
                 };
             }
-            setTimeout(() => {
-                if (node._SmartLLM_initialized) return;
+            if (!node._SmartLLM_initialized && !isConfiguringGraph()) {
                 node._SmartLLM_initialized = true;
-                if (node._SmartLLM_configuredFromWorkflow) return;
-                if (modelWidget && isSeparatorEntry(modelWidget.value)) {
-                    const opts = modelWidget.options?.values || [];
-                    const first = opts.find(v => !isSeparatorEntry(v));
-                    if (first) modelWidget.value = first;
-                }
-                updateAllVisibility();
-                // Sync size-shrink — smartResize's async rAF pass leaves a
-                // visible tall-node gap on fresh add (hideInitially pre-hid
-                // ~22 widgets before Vue's first computeSize() pass).
-                const _oldH = node.size[1];
-                node.size[1] = 0;
-                const _c = node.computeSize();
-                if (_c[1] !== _oldH) node.setSize?.([node.size[0], _c[1]]);
-                else node.size[1] = _oldH;
-                (async () => {
-                    if (modelWidget?.value) {
-                        await onModelChanged(modelWidget.value);
+                requestAnimationFrame(() => {
+                    if (node._SmartLLM_configuredFromWorkflow) return;
+                    if (modelWidget && isSeparatorEntry(modelWidget.value)) {
+                        const opts = modelWidget.options?.values || [];
+                        const first = opts.find(v => !isSeparatorEntry(v));
+                        if (first) modelWidget.value = first;
                     }
-                })();
-            }, 0);
+                    updateAllVisibility();
+                    // Sync size-shrink — smartResize's async rAF pass leaves a
+                    // visible tall-node gap on fresh add (hideInitially pre-hid
+                    // ~22 widgets before Vue's first computeSize() pass).
+                    const oldHeight = node.size[1];
+                    node.size[1] = 0;
+                    const computed = node.computeSize();
+                    if (computed[1] !== oldHeight) {
+                        node.setSize?.([node.size[0], computed[1]]);
+                    } else {
+                        node.size[1] = oldHeight;
+                    }
+                    if (modelWidget?.value) {
+                        void onModelChanged(modelWidget.value);
+                    }
+                });
+            }
             const origOnConfigure = node.onConfigure;
-            node.onConfigure = function(info) {
+            node.onConfigure = function() {
                 node._SmartLLM_configuredFromWorkflow = true;
                 if (origOnConfigure) origOnConfigure.apply(this, arguments);
-                setTimeout(async () => {
-                    if (modeBarWidget) {
-                        modeBarWidget.value = readModeFromBacking();
-                    }
-                    if (modelWidget?.value) {
-                        await onModelChanged(modelWidget.value);
-                    } else {
-                        updateAllVisibility();
-                    }
-                }, 150);
+                if (modeBarWidget) {
+                    modeBarWidget.value = readModeFromBacking();
+                }
+                updateAllVisibility();
+                if (modelWidget?.value) {
+                    void onModelChanged(modelWidget.value);
+                }
             };
             return r;
         };

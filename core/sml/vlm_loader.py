@@ -447,30 +447,31 @@ def _try_import_llava_class(arch_name: str):
     if arch_name in STANDARD_LLAVA_CLASSES:
         return None  # Let the normal transformers resolution handle it
 
-    # Map of custom llava classes to their import paths
-    LLAVA_CUSTOM_IMPORTS = {
-        "LlavaLlamaForCausalLM": (
-            "llava.model.language_model.llava_llama",
-            "LlavaLlamaForCausalLM",
-        ),
-        "LlavaMistralForCausalLM": (
-            "llava.model.language_model.llava_mistral",
-            "LlavaMistralForCausalLM",
-        ),
-        "LlavaQwenForCausalLM": (
-            "llava.model.language_model.llava_qwen",
-            "LlavaQwenForCausalLM",
-        ),
-    }
-
-    if arch_name in LLAVA_CUSTOM_IMPORTS:
-        module_path, class_name = LLAVA_CUSTOM_IMPORTS[arch_name]
+    if arch_name in {
+        "LlavaLlamaForCausalLM",
+        "LlavaMistralForCausalLM",
+        "LlavaQwenForCausalLM",
+    }:
         try:
-            import importlib
+            if arch_name == "LlavaLlamaForCausalLM":
+                from llava.model.language_model.llava_llama import (  # type: ignore
+                    LlavaLlamaForCausalLM,
+                )
 
-            mod = importlib.import_module(module_path)
-            cls = getattr(mod, class_name)
-            log.debug(_LOG_PREFIX, f"  Using {class_name} from llava package")
+                cls = LlavaLlamaForCausalLM
+            elif arch_name == "LlavaMistralForCausalLM":
+                from llava.model.language_model.llava_mistral import (  # type: ignore
+                    LlavaMistralForCausalLM,
+                )
+
+                cls = LlavaMistralForCausalLM
+            else:
+                from llava.model.language_model.llava_qwen import (  # type: ignore
+                    LlavaQwenForCausalLM,
+                )
+
+                cls = LlavaQwenForCausalLM
+            log.debug(_LOG_PREFIX, f"  Using {arch_name} from llava package")
             return cls
         except (ImportError, AttributeError) as e:
             raise ValueError(
