@@ -4,7 +4,7 @@ One adaptive interface for vision-language models, text models, WD14 taggers,
 Florence grounding, and YOLO detection—plus a registry manager that keeps model
 identity, acquisition, and trust decisions explicit.
 
-Version **1.0.4** provides three Nodes 2.0-ready nodes. ComfyUI Eclipse is
+Version **1.0.20** provides five Nodes 2.0-ready nodes. ComfyUI Eclipse is
 optional.
 
 ![Annotated Nodes 2.0 overview of Smart LM Loader and Smart Detection](Readme/assets/smartllm-overview.png)
@@ -83,6 +83,21 @@ Some generative tasks intentionally use `user_prompt` as their source material:
   `user_prompt`. Genre, language, tempo, or structural preferences can be added
   when they matter. The result is a structured lyric sheet that can be copied
   into Suno, Mureka, or another music-generation tool.
+- For **MiniMax Music 3**, use a text-capable LLM with a song concept or existing
+  lyrics in `user_prompt`. You can also chain **Song Lyrics → MiniMax Music 3**.
+  Concepts compose a complete song; structured lyrics and Song Lyrics output
+  convert with sung words retained in code and only the caption generated.
+  The result is one JSON string with `caption` and `lyrics`. Connect it to
+  **Split MiniMax Music 3 [SmartLLM]** → `song_json`, then connect its two
+  STRING outputs to the native Music 3 encoder's `caption` and `lyrics` inputs.
+  Alternatively, connect the JSON directly to
+  **Text Encode MiniMax Music 3 [Smart Model Loader]** → `song_json`.
+  [Music 3 usage and output format](Readme/MiniMax_Music_3.md).
+- For **YuE2 Music**, enter a song concept or chain **Song Lyrics → YuE2 Music**. Concepts
+  compose style and complete lyrics; structured sheets and supplied song JSON
+  retain lyrics in code. Connect the result to **Split YuE2 [SmartLLM]**, then
+  connect `style` and `lyrics` to both native YuE2 generators. ABC planning stays
+  native and optional. [YuE2 usage, preservation and wiring](Readme/YuE2.md).
 
 These cases do not require a custom `system_prompt`; selecting the task still
 loads the appropriate instructions automatically.
@@ -212,10 +227,12 @@ preserved.
 | `Smart LM Loader [Eclipse]` | optional images, optional system prompt, adaptive widgets | image, text | Run registered vision-language, text, or WD14 models |
 | `Smart Detection [Eclipse]` | image, adaptive widgets | image, mask, SEGS, data | Run Florence/Qwen grounding or YOLO detection |
 | `Detection to Bboxes [Eclipse]` | image, optional detection data, mask controls | mask, BBOXES | Convert Smart Detection data or image regions into masks and boxes |
+| `Split MiniMax Music 3 [SmartLLM]` | song_json | caption, lyrics (STRING) | Validate and split song JSON for the native Music 3 encoder |
+| `Split YuE2 [SmartLLM]` | song_json | style, lyrics (STRING) | Validate and split song JSON for both native YuE2 generators |
 
-The `[Eclipse]` suffixes are compatibility identifiers. SmartLLM owns all three
+The `[Eclipse]` suffixes are compatibility identifiers. SmartLLM owns all five
 implementations and does not require Eclipse at runtime. The two model nodes
-appear under **Smart LM Loader → Loader**, while the converter appears under
+appear under **Smart LM Loader → Loader**, while the converters appear under
 **Smart LM Loader → Conversion**. Their historical IDs remain unchanged so saved
 workflows continue to resolve without node replacement.
 
@@ -268,7 +285,7 @@ Docker backends require Docker separately. See the
 
 ## Compatibility and ownership
 
-- SmartLLM registers exactly the three nodes listed above and owns the
+- SmartLLM registers exactly the five nodes listed above and owns the
   `/smartlml/...` API namespace, registries, Registry Manager, model-acquisition
   state, Docker configuration, and private `config.json`.
 - Its model path, retry policy, log level, Hugging Face and ModelScope

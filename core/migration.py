@@ -29,6 +29,10 @@ _CONFIG_KEYS = {
 _ECLIPSE_CONFIG_KEYS = frozenset(_CONFIG_KEYS)
 _DEFAULT_VALUE_UPGRADES = {
     Path("config/system_prompts.json"): {
+        "MiniMax Music 3": (
+            "6db71d6f7fd9890a6f75127e1e290cbe72988d5b6d39d99812ee4a3cd738e739",
+            "aba0293889df90a05a4a2f14c083ec10d22b75f37b3f2fa3a173dc0bd2253701",
+        ),
         "MiniMax H3 Scene 5s": (
             "e03e44bae85d73581a1908c7dc21e0c898a008019096482631d743b09794ffe8",
             "0b7efa02451ded08444004329cfc3defa0b5fd9b558dd5c5493e068643d0caaa",
@@ -58,6 +62,10 @@ _DEFAULT_VALUE_UPGRADES = {
         "LTX 2.3 I2V": "dbf829e66bc2232fb5dd542c069f804b81641e2add4cc3233c9d8def4b705eeb",
     },
     Path("config/llm_few_shot_training.json"): {
+        "minimax_music_3": (
+            "eb4dd0d3053de1b777d09b24fea6ef467976fbe0a3c0c5215e94705c4364cc16",
+            "de9b9b0554e455f994fbc2160d9b4b87f1f21764d19dbf65c18985449ebd7919",
+        ),
         "minimax_h3_scene_5s": (
             "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
             "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
@@ -83,6 +91,10 @@ _DEFAULT_VALUE_UPGRADES = {
         "ltx_2.3_i2v": "ddddcb90ebc4292ae937be87f8fe1d542e6ab55416fc777a56dd44208ea4a397",
     },
     Path("config/llm_few_shot_training_nsfw.json"): {
+        "minimax_music_3": (
+            "eb4dd0d3053de1b777d09b24fea6ef467976fbe0a3c0c5215e94705c4364cc16",
+            "de9b9b0554e455f994fbc2160d9b4b87f1f21764d19dbf65c18985449ebd7919",
+        ),
         "minimax_h3_scene_5s": (
             "eecd52bf4a3e38146d684c9bbfd400074a8819eacc27e40a5b11901153bb7885",
             "a44c6a7d90bd547f0fa504e933ceadd81d3aa5db92d029ce415e637d102fc70e",
@@ -577,6 +589,20 @@ def materialize_defaults(repo_root: Path) -> None:
                     )
             manifest[key] = example_hash
             changed = True
+
+        elif relative in _DEFAULT_VALUE_UPGRADES:
+            # A manifest records the bundled file, not the presence of each task
+            # in runtime data. Repair missing task defaults even when hashes match.
+            # The atomic updater leaves customized values and unchanged files alone.
+            data = _read_bundled_object(example)
+            if data is not None:
+                update_json_object(
+                    target,
+                    lambda current, bundled_data=data, rel=relative: (
+                        _merge_bundled_update(rel, current, bundled_data)
+                    ),
+                    private=False,
+                )
 
     if changed:
         write_json_object(manifest_path, manifest, private=True)

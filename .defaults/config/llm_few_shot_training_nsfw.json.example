@@ -2106,5 +2106,225 @@
                 ]
             ]
         ]
+    ],
+    "minimax_music_3": [
+        [
+            "display_name",
+            "MiniMax Music 3"
+        ],
+        [
+            "instruction_template",
+            ""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Rock/metal song style. The song is about a masked vigilante and his struggle between good and bad: he fights at night as judge and executioner, an anti-hero who breaks the law but is a hero to ordinary people."
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"caption\": \"Global Metadata: Dark anthemic rock/metal in 4/4 at 140 BPM, D minor, drop-D guitars. Tense verses build into defiant choruses, then a conflicted bridge and reflective ending. Tight modern drums, wide distorted guitars and a clear centered vocal.\\n\\nVocal Details: Gritty male baritone, restrained narrative verses, forceful melodic choruses and rough accents in the bridge; layered final-chorus harmonies.\\n\\nArrangement: [Verse 1] Palm-muted guitars, bass and a tight backbeat establish tension. [Pre-Chorus] Open chords and rising toms build urgency. [Chorus] Full distorted chords, driving bass and crash accents support the hook. [Verse 2] Return to the muted riff with a counter-melody. [Pre-Chorus] Rebuild with stronger drums. [Chorus] Repeat the full hook. [Bridge] Half-time drums and sparse low guitar expose the moral doubt. [Guitar Solo] A melodic lead climbs above the main riff. [Final Chorus] Full band and vocal harmonies reach the peak. [Outro] Clean guitar and fading cymbals leave the final question unresolved.\", \"lyrics\": \"[Verse 1]\\nRain draws bars across the street\\nI count the windows still alight\\nA frightened child with frozen feet\\nRuns past my shadow through the night\\n\\n[Pre-Chorus]\\nNo badge to hold against my chest\\nNo court to weigh the things I do\\nI tell myself I know what’s best\\nThen hide the blood from public view\\n\\n[Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Verse 2]\\nA mother thanks me through the rain\\nA siren orders me to kneel\\nThe man I broke still speaks my name\\nHis broken voice is all I feel\\n\\n[Pre-Chorus]\\nNo badge to hold against my chest\\nNo court to weigh the things I do\\nI tell myself I know what’s best\\nThen hide the blood from public view\\n\\n[Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Bridge]\\nI made a courtroom of the street\\nI made a sentence of my fist\\nBut every heart I hear still beat\\nNames all the mercy I have missed\\n\\n[Guitar Solo]\\n\\n[Final Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Outro]\\nThe dawn finds footprints in the rain\\nI leave one final door unbarred\\nTomorrow I must choose again\\nTo spare a life can be this hard\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Create an instrumental ambient piece for a quiet snowy morning. No singing."
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"caption\": \"Global Metadata: Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nVocal Details: No vocals, no singing, no spoken words or vocal samples.\\n\\nArrangement: [Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\", \"lyrics\": \"\"}"
+                    ]
+                ]
+            ]
+        ]
+    ],
+    "minimax_music_3_convert": [
+        [
+            "display_name",
+            "MiniMax Music 3 Conversion"
+        ],
+        [
+            "instruction_template",
+            ""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Lichter\n4/4, 96 BPM, standard tuning, synth pop\n[Verse 1 - whispered over soft keys]\nDu sagst: \"Bleib hier\"\nDie Nacht gehört mir\n[Chorus - full drums]\nWir leuchten — du und ich\n[Chorus repeat twice]\nStructure: Verse 1 (4 bars), Chorus (4 bars), Chorus x2 (8 bars)"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"caption\": \"Global Metadata: Synth pop in 4/4 at 96 BPM, standard tuning; luminous nocturnal mood with a spacious polished mix.\\n\\nVocal Details: German lead vocal, whispered in Verse 1 and open in the chorus; restrained doubles on the refrain.\\n\\nArrangement: [Verse 1] Soft keys with a restrained bass pulse. [Chorus] Full drums and broad synth chords enter. Repeat the chorus twice with brighter arpeggios, retaining the melody.\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "{\"caption\": \"Global Metadata: Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nVocal Details: No vocals, no singing, no spoken words or vocal samples.\\n\\nArrangement: [Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\", \"lyrics\": \"\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"caption\": \"Global Metadata: Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nVocal Details: No vocals, no singing, no spoken words or vocal samples.\\n\\nArrangement: [Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\"}"
+                    ]
+                ]
+            ]
+        ]
+    ],
+    "yue2": [
+        [
+            "display_name",
+            "YuE2"
+        ],
+        [
+            "instruction_template",
+            ""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Rock/metal song style. The song is about a masked vigilante and his struggle between good and bad: he fights at night as judge and executioner, an anti-hero who breaks the law but is a hero to ordinary people."
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"style\": \"Dark anthemic rock/metal in 4/4 at 140 BPM, D minor, drop-D guitars. Tense verses build into defiant choruses, then a conflicted bridge and reflective ending. Tight modern drums, wide distorted guitars and a clear centered vocal.\\n\\nGritty male baritone, restrained narrative verses, forceful melodic choruses and rough accents in the bridge; layered final-chorus harmonies.\\n\\n[Verse 1] Palm-muted guitars, bass and a tight backbeat establish tension. [Pre-Chorus] Open chords and rising toms build urgency. [Chorus] Full distorted chords, driving bass and crash accents support the hook. [Verse 2] Return to the muted riff with a counter-melody. [Pre-Chorus] Rebuild with stronger drums. [Chorus] Repeat the full hook. [Bridge] Half-time drums and sparse low guitar expose the moral doubt. [Guitar Solo] A melodic lead climbs above the main riff. [Final Chorus] Full band and vocal harmonies reach the peak. [Outro] Clean guitar and fading cymbals leave the final question unresolved.\", \"lyrics\": \"[Verse 1]\\nRain draws bars across the street\\nI count the windows still alight\\nA frightened child with frozen feet\\nRuns past my shadow through the night\\n\\n[Pre-Chorus]\\nNo badge to hold against my chest\\nNo court to weigh the things I do\\nI tell myself I know what’s best\\nThen hide the blood from public view\\n\\n[Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Verse 2]\\nA mother thanks me through the rain\\nA siren orders me to kneel\\nThe man I broke still speaks my name\\nHis broken voice is all I feel\\n\\n[Pre-Chorus]\\nNo badge to hold against my chest\\nNo court to weigh the things I do\\nI tell myself I know what’s best\\nThen hide the blood from public view\\n\\n[Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Bridge]\\nI made a courtroom of the street\\nI made a sentence of my fist\\nBut every heart I hear still beat\\nNames all the mercy I have missed\\n\\n[Guitar Solo]\\n\\n[Final Chorus]\\nWho saves the city from my hand?\\nWho draws the line where I should stand?\\nThey call me hope, they call me fear\\nThe law says run, the streets say stay here\\nI wear the dark so they see light\\nBut who will judge my war tonight?\\n\\n[Outro]\\nThe dawn finds footprints in the rain\\nI leave one final door unbarred\\nTomorrow I must choose again\\nTo spare a life can be this hard\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Create an instrumental ambient piece for a quiet snowy morning. No singing."
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"style\": \"Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nNo vocals, no singing, no spoken words or vocal samples.\\n\\n[Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\", \"lyrics\": \"\"}"
+                    ]
+                ]
+            ]
+        ]
+    ],
+    "yue2_convert": [
+        [
+            "display_name",
+            "YuE2 Conversion"
+        ],
+        [
+            "instruction_template",
+            ""
+        ],
+        [
+            "examples",
+            [
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "Lichter\n4/4, 96 BPM, standard tuning, synth pop\n[Verse 1 - whispered over soft keys]\nDu sagst: \"Bleib hier\"\nDie Nacht gehört mir\n[Chorus - full drums]\nWir leuchten — du und ich\n[Chorus repeat twice]\nStructure: Verse 1 (4 bars), Chorus (4 bars), Chorus x2 (8 bars)"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"style\": \"Synth pop in 4/4 at 96 BPM, standard tuning; luminous nocturnal mood with a spacious polished mix.\\n\\nGerman lead vocal, whispered in Verse 1 and open in the chorus; restrained doubles on the refrain.\\n\\n[Verse 1] Soft keys with a restrained bass pulse. [Chorus] Full drums and broad synth chords enter. Repeat the chorus twice with brighter arpeggios, retaining the melody.\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "user"
+                    ],
+                    [
+                        "content",
+                        "{\"style\": \"Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nNo vocals, no singing, no spoken words or vocal samples.\\n\\n[Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\", \"lyrics\": \"\"}"
+                    ]
+                ],
+                [
+                    [
+                        "role",
+                        "assistant"
+                    ],
+                    [
+                        "content",
+                        "{\"style\": \"Instrumental ambient, slow free-time pacing, D major; serene winter stillness, soft transients and long reverberation.\\n\\nNo vocals, no singing, no spoken words or vocal samples.\\n\\n[Intro] Sparse felt piano emerges from a warm drone. [Development] Bowed strings gradually widen the harmony. [Outro] Piano notes thin out as the drone fades.\"}"
+                    ]
+                ]
+            ]
+        ]
     ]
 }

@@ -82,6 +82,8 @@ class SmartLLMExtension(ComfyExtension):
         from .py.RvConversion_DetectionToBboxes import (
             RvConversion_DetectionToBboxes,
         )
+        from .py.RvConversion_SplitMiniMaxMusic3 import RvConversion_SplitMiniMaxMusic3
+        from .py.RvConversion_SplitYuE2 import RvConversion_SplitYuE2
         from .py.RvLoader_SmartDetection import RvLoader_Detection
         from .py.RvLoader_SmartLMLoader import RvLoader_SmartModelLoader_LM
 
@@ -89,6 +91,8 @@ class SmartLLMExtension(ComfyExtension):
             RvLoader_SmartModelLoader_LM,
             RvLoader_Detection,
             RvConversion_DetectionToBboxes,
+            RvConversion_SplitMiniMaxMusic3,
+            RvConversion_SplitYuE2,
         ]
 
 

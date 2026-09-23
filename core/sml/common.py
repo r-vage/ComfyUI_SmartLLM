@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 # Import log from logger (centralized location)
 from .logger import log
+from .song import protected_song_json
 
 
 # Common tokenizer/output mojibake sequences. The dash keys are the GPT-style
@@ -306,6 +307,10 @@ def strip_thinking_tags(text: str) -> tuple[str, str]:
     if not raw_text:
         return "", ""
 
+    song = protected_song_json(raw_text)
+    if song is not None:
+        return song, raw_text
+
     cleaned_text = raw_text
 
     # Remove leaked chat template tokens (<|im_start|>, <|im_end|>, <|endoftext|>)
@@ -354,6 +359,9 @@ def strip_thinking_tags(text: str) -> tuple[str, str]:
         return raw_text, raw_text
 
     # Remove any remaining XML-style tags (but keep their content)
+    song = protected_song_json(cleaned_text)
+    if song is not None:
+        return song, raw_text
     cleaned_text = _RE_XML_ANY_TAG.sub("", cleaned_text).strip()
 
     # Remove any remaining bracket-style tags (but keep their content)
@@ -392,6 +400,10 @@ def strip_llm_prefixes(text: str) -> str:
 
     original = text.strip()
 
+    song = protected_song_json(original)
+    if song is not None:
+        return song
+
     # Normalize Unicode typography marks to ASCII equivalents for pattern matching
     # This handles curly quotes from different LLMs without complicating patterns
     cleaned = original
@@ -412,6 +424,9 @@ def strip_llm_prefixes(text: str) -> str:
     json_extracted = _extract_from_json_wrapper(cleaned)
     if json_extracted is not None:
         cleaned = json_extracted.strip()
+
+    # Clean song introductions before generic prose patterns can consume a title.
+    cleaned = clean_song_lyrics(cleaned) if cleaned else cleaned
 
     # Debug: show first 20 chars as hex to detect invisible characters
     first_chars = cleaned[:20]
@@ -449,9 +464,6 @@ def strip_llm_prefixes(text: str) -> str:
     else:
         log.debug("StripPrefix", f"No pattern matched - output unchanged")
 
-    # Auto-detect Song Lyrics output and normalise its formatting (no-op otherwise)
-    cleaned = clean_song_lyrics(cleaned) if cleaned else cleaned
-
     return cleaned if cleaned else original
 
 
@@ -467,6 +479,9 @@ def repair_model_output_encoding(text: str) -> str:
 
 def clean_model_output(text: str) -> tuple[str, str]:
     # Apply the shared output contract and retain the repaired pre-strip text.
+    song = protected_song_json(text or "")
+    if song is not None:
+        return song, text.strip()
     repaired = repair_model_output_encoding(text.strip() if text else "")
     cleaned, raw_output = strip_thinking_tags(repaired)
     cleaned = strip_llm_prefixes(cleaned)
@@ -579,6 +594,15 @@ _RE_MD_ITALIC_UND = re.compile(r"(?<![_\w])_(?!\s)([^_\n]+?)(?<!\s)_(?![_\w])")
 # Heading markers `# `, `## `, etc. at start of line — drop the marker, keep text
 _RE_MD_HEADING = re.compile(r"^[ \t]*#{1,6}[ \t]+", re.MULTILINE)
 
+# Song introductions can contain genre punctuation and several sentences.
+# Stay on the introductory line so title/tempo/section lines remain intact.
+_RE_LYRIC_PREAMBLE = re.compile(
+    r"\A[ \t]*(?:(?:Certainly|Sure|Of course|Absolutely)[!.,]?[ \t]*)?"
+    r"Here(?:['\u2019]s|[ \t]+(?:is|are))[ \t]+"
+    r"[^\n.!?:]*\b(?:song|lyrics)\b[^\n]*(?:\n|$)",
+    re.IGNORECASE,
+)
+
 # Line-prefix labels we don't want: "Title:", "Style:", "Genre:", "Song:", "Tempo:"
 _RE_LYRIC_LINE_LABEL = re.compile(
     r"^[ \t]*(?:Title|Style|Genre|Song|Tempo)\s*:\s*",
@@ -591,6 +615,7 @@ _RE_TRIPLE_BLANK = re.compile(r"\n{3,}")
 
 def clean_song_lyrics(text: str) -> str:
     # Auto-detect Song Lyrics output and normalise its formatting:
+    #   - remove a leading "Here is a ... song/lyrics" introduction
     #   - strip Markdown bold/italic (** __ * _) wrappers, keep content
     #   - strip leading `#` heading markers, keep text
     #   - convert round-bracket section labels "(Verse 1)" → "[Verse 1]"
@@ -614,6 +639,8 @@ def clean_song_lyrics(text: str) -> str:
     out = _RE_MD_ITALIC_UND.sub(r"\1", out)
     # Strip leading `# ` heading markers
     out = _RE_MD_HEADING.sub("", out)
+    # Only strip introductions after lyric detection, never within the song.
+    out = _RE_LYRIC_PREAMBLE.sub("", out.lstrip())
     # Convert "(Verse 1)" / "(Chorus)" lines → "[Verse 1]" / "[Chorus]"
     out = _RE_LYRIC_ROUND_LABEL.sub(r"[\1]", out)
     # Strip "Title:" / "Style:" / etc. line prefixes

@@ -55,6 +55,9 @@ from ..core.sml.model_registry import (
     load_defaults,
     save_defaults,
 )
+from ..core.sml.music3 import TASK_NAME as MUSIC3_TASK
+from ..core.sml.music3 import resolve_source as resolve_music3_source
+from ..core.sml.song import active_source, generate_song
 from ..core.sml.tasks import (
     TASK_BY_NAME,
     canonicalize_task_name,
@@ -67,6 +70,8 @@ from ..core.sml.tasks import (
     reset_system_prompt_override,
     resolve_h3_input_mode,
 )
+from ..core.sml.yue2 import TASK_NAME as YUE2_TASK
+from ..core.sml.yue2 import resolve_source as resolve_yue2_source
 
 _LOG_PREFIX = "SmartLLM Loader"
 
@@ -101,14 +106,7 @@ _DOCKER_BACKENDS = {"vllm", "sglang", "ollama", "llamacpp"}
 
 # Tasks that should never pass images (text processing only)
 _TEXT_ONLY_TASKS = {
-    "Tags to Natural Language",
-    "Natural Language to Tags",
-    "Refine & Expand Prompt",
-    "Expand Text",
-    "Summarize",
-    "Rewrite Style",
-    "Translate to English",
-    "Prompt Variations",
+    name for name, task in TASK_BY_NAME.items() if task.category == "text"
 }
 
 # Tasks that use images when connected, but also work text-only
@@ -326,7 +324,7 @@ def _build_vlm_prompt(task_name, user_prompt, input_image, *, family="Qwen"):
         resolve_h3_input_mode(task_name, image_count)
     has_image = image_count > 0
     is_flexible = task_name in _FLEXIBLE_TASKS or h3_mode is not None
-    is_text_only = (task_name in _TEXT_ONLY_TASKS and has_text) or (
+    is_text_only = task_name in _TEXT_ONLY_TASKS or (
         is_flexible and has_text and not has_image
     )
 
@@ -558,6 +556,9 @@ def _dispatch_generate(
 ):
     # Route generation to the correct backend.
     # Returns (result, raw_output, data, original_size, resized_size).
+    music_source = active_source.get()
+    if task_name in (MUSIC3_TASK, YUE2_TASK) and music_source is not None:
+        llm_mode = music_source.training_key
     is_vision = input_image is not None and not is_text_only_task
     vision_task = task_name if is_vision and not llm_mode else None
     image_paths = None
@@ -950,6 +951,16 @@ def _generate_for_family(
     return result, data
 
 
+def _generate_with_task_contract(task_name, generate, user_prompt="", previous_task=None):
+    """Apply each song contract to first and chained generations."""
+    task_name = canonicalize_task_name(task_name)
+    resolver = {MUSIC3_TASK: resolve_music3_source, YUE2_TASK: resolve_yue2_source}.get(task_name)
+    if resolver is None:
+        return generate()
+    source = resolver(user_prompt or "", previous_task)
+    return generate_song(task_name, source, generate, log)
+
+
 def _generate_with_h3_recovery(**generation_kwargs):
     # H3 prompts have a machine-readable field contract. Retry one malformed
     # response with a stronger system instruction instead of silently returning
@@ -959,7 +970,10 @@ def _generate_with_h3_recovery(**generation_kwargs):
     generation_kwargs["task_name"] = task_name
     mode = get_h3_mode(task_name)
     if mode is None:
-        return _generate_for_family(**generation_kwargs)
+        return _generate_with_task_contract(
+            task_name, lambda: _generate_for_family(**generation_kwargs),
+            user_prompt=generation_kwargs.get("user_prompt"),
+        )
 
     story_token = None
     if story_mode:
@@ -1068,7 +1082,7 @@ def _run_multi_task_chain(
     current_text = first_result
 
     for idx in range(1, len(tasks_to_run)):
-        task_name = tasks_to_run[idx]
+        task_name = canonicalize_task_name(tasks_to_run[idx])
         log.info(
             _LOG_PREFIX, f"Multi-task step {idx + 1}/{len(tasks_to_run)}: {task_name}"
         )
@@ -1078,7 +1092,13 @@ def _run_multi_task_chain(
 
             clear_gguf_state_between_tasks(instance)
 
-        if not current_text or not current_text.strip():
+        # Song tasks must report an unusable Song Lyrics source, including an empty
+        # one, through its parser instead of silently ending the requested chain.
+        requires_song_source = (
+            task_name in (MUSIC3_TASK, YUE2_TASK)
+            and canonicalize_task_name(tasks_to_run[idx - 1]) == "Song Lyrics"
+        )
+        if (not current_text or not current_text.strip()) and not requires_song_source:
             log.warning(_LOG_PREFIX, f"Task {idx} returned empty, stopping chain")
             break
 
@@ -1087,31 +1107,39 @@ def _run_multi_task_chain(
         # Don't prepend system — backend handles system + few-shot via llm_mode
         prompt = current_text
 
-        task_result, _, task_data, _, _ = _dispatch_generate(
-            instance,
-            prompt=prompt,
-            input_image=None,
-            is_text_only_task=True,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            seed=seed,
-            repetition_penalty=repetition_penalty,
-            num_beams=num_beams,
-            do_sample=do_sample,
-            model_family=model_family,
-            task_name=task_name,
-            context_size=context_size,
-            frame_count=frame_count,
-            llm_mode=chained_llm_mode,
-            use_few_shot=use_few_shot,
-            min_p=min_p,
-            mirostat=mirostat,
-            mirostat_eta=mirostat_eta,
-            mirostat_tau=mirostat_tau,
-            repeat_last_n=repeat_last_n,
-            stop_sequences=stop_sequences,
+        dispatch_kwargs = {
+            "prompt": prompt,
+            "input_image": None,
+            "is_text_only_task": True,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "seed": seed,
+            "repetition_penalty": repetition_penalty,
+            "num_beams": num_beams,
+            "do_sample": do_sample,
+            "model_family": model_family,
+            "task_name": task_name,
+            "context_size": context_size,
+            "frame_count": frame_count,
+            "llm_mode": chained_llm_mode,
+            "use_few_shot": use_few_shot,
+            "min_p": min_p,
+            "mirostat": mirostat,
+            "mirostat_eta": mirostat_eta,
+            "mirostat_tau": mirostat_tau,
+            "repeat_last_n": repeat_last_n,
+            "stop_sequences": stop_sequences,
+        }
+
+        def generate_stage(dispatch_kwargs=dispatch_kwargs):
+            result, _, data, _, _ = _dispatch_generate(instance, **dispatch_kwargs)
+            return result, data
+
+        task_result, task_data = _generate_with_task_contract(
+            task_name, generate_stage, user_prompt=current_text,
+            previous_task=canonicalize_task_name(tasks_to_run[idx - 1]),
         )
 
         all_results.append(

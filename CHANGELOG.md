@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-09-23
+
+### Version: 1.0.20
+
+- **Feat**
+  - Add YuE2 Music song composition and lyric-preserving conversion with free-form style/lyrics JSON, separate Training modes, instrumental requests, and shared song parsing and execution state. Keep saved YuE2 task selections compatible with the visible YuE2 Music name.
+  - Add Split YuE2 for exact style/lyrics forwarding to both native YuE2 generators, with optional native ABC planning.
+  - Add the MiniMax Music 3 text task to compose complete songs from concepts or stories, with structured lyrics, rhyme, repeated hooks and instrumental support in caption/lyrics JSON.
+  - Automatically convert Song Lyrics sheets and existing song JSON with lyric preservation enforced in code, caption generation from musical directions, explicit repeat expansion and clear errors for ambiguous sources.
+  - Bundle separate composition and conversion prompts and Training examples in both variants, with execution-local overrides and additive default migration that preserves user customizations.
+  - Add Split MiniMax Music 3 to validate song JSON and output unchanged caption and lyrics strings for ComfyUI's native encoder, including fenced JSON and empty instrumental lyrics.
+  - Support Song Lyrics chaining with introductory prose cleanup, preserve song JSON surrounded by fences or model commentary, and validate single and chained generations with one corrective retry before reporting invalid output.
+  - Enable task instructions and Training examples for all registered text tasks on vision-capable models, including Song Lyrics and Short Story, even with an empty user prompt.
+
+- **Docs**
+  - Document Music 3 usage, output format and both encoder routes with general socket-based instructions.
+  - Document YuE2 preservation, native audio wiring and instrumental limits.
+
+**Changed files:**
+- `.defaults/.manifest.json`
+- `Readme/YuE2.md`
+- `core/sml/song.py`
+- `core/sml/yue2.py`
+- `js/smartllm-task-compat.js`
+- `py/RvConversion_SplitYuE2.py`
+- `.defaults/config/llm_few_shot_training.json.example`
+- `.defaults/config/llm_few_shot_training_nsfw.json.example`
+- `.defaults/config/system_prompts.json.example`
+- `README.md`
+- `Readme/MiniMax_Music_3.md`
+- `core/migration.py`
+- `core/sml/common.py`
+- `core/sml/music3.py`
+- `core/sml/tasks.py`
+- `py/RvConversion_SplitMiniMaxMusic3.py`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
 ## 2026-09-19
 
 ### Version: 1.0.19

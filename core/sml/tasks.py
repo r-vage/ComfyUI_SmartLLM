@@ -88,6 +88,7 @@ TASK_LTX_23_I2V = Task("LTX 2.3 I2V", "custom", False)
 
 MINIMAX_H3_SCENE_TASK = "MiniMax H3 Scene"
 LEGACY_TASK_ALIASES: dict[str, str] = {
+    "YuE2": "YuE2 Music",
     "MiniMax H3 Scene 5s": MINIMAX_H3_SCENE_TASK,
     "MiniMax H3 T2VA Timeline 15s": "MiniMax H3 T2VA Timeline",
     "MiniMax H3 I2VA Timeline 15s": "MiniMax H3 I2VA Timeline",
@@ -207,6 +208,8 @@ TASK_NL_TO_TAGS = Task("Natural Language to Tags", "text", False)
 TASK_TRANSLATE = Task("Translate to English", "text", False)
 TASK_SHORT_STORY = Task("Short Story", "text", False)
 TASK_SONG_LYRICS = Task("Song Lyrics", "text", False)
+TASK_MINIMAX_MUSIC3 = Task("MiniMax Music 3", "text", False)
+TASK_YUE2 = Task("YuE2 Music", "text", False)
 TASK_SUMMARIZE = Task("Summarize", "text", False)
 TASK_PROMPT_VARIATIONS = Task("Prompt Variations", "text", False)
 
@@ -296,6 +299,8 @@ ALL_TASKS: tuple[Task, ...] = (
     TASK_TRANSLATE,
     TASK_SHORT_STORY,
     TASK_SONG_LYRICS,
+    TASK_MINIMAX_MUSIC3,
+    TASK_YUE2,
     TASK_SUMMARIZE,
     TASK_PROMPT_VARIATIONS,
     TASK_DET_PHRASE_GROUND,

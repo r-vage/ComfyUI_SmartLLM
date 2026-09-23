@@ -1,4 +1,5 @@
 const LEGACY_TASK_ALIASES = Object.freeze({
+    'YuE2': 'YuE2 Music',
     'MiniMax H3 Scene 5s': 'MiniMax H3 Scene',
     'MiniMax H3 T2VA Timeline 15s': 'MiniMax H3 T2VA Timeline',
     'MiniMax H3 I2VA Timeline 15s': 'MiniMax H3 I2VA Timeline',
