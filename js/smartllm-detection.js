@@ -562,7 +562,9 @@ const smartLLMDetectionExtension = {
                 if (!mw) continue;
                 const prev = mw.value;
                 mw.options.values = mapped;
-                if (!mapped.includes(prev) || isSeparatorEntry(prev)) {
+                // Refresh availability without rewriting the workflow's model.
+                // An absent YOLO entry must not silently select the first VLM.
+                if (!prev || Object.hasOwn(MODEL_SEPARATOR_LABELS, prev) || isSeparatorEntry(prev)) {
                     const first = mapped.find(v => !isSeparatorEntry(v));
                     if (first) {
                         mw.value = first;

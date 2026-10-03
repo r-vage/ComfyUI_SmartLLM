@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+### Version: 1.0.23
+
+- **Fix**
+  - Preserve the selected Smart Detection model when a registry refresh omits it, preventing YOLO selections from silently switching to Florence and being saved with the wrong model.
+
+**Changed files:**
+- `js/smartllm-detection.js`
+- `pyproject.toml`
+
 ### Version: 1.0.22
 
 - **Fix**
