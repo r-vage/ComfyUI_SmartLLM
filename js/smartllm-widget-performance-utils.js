@@ -326,9 +326,10 @@ export function createWidgetVisibilityManager(node) {
         const changed = !!slot._smartllm_hidden === visible ||
             !!slot._smartllm_hiddenDrawInstalled === visible;
         if (!visible) {
-            // Only disconnect on user-driven changes (widget callback), not
-            // during onNodeCreated / onConfigure / workflow restore.
-            if (!visible && userDriven && slot.link != null) {
+            // DOM widget setters also invoke callbacks during workflow restore.
+            // Input indices from image metadata are not realigned yet, so a
+            // hidden slot can temporarily resolve another widget's saved link.
+            if (userDriven && !loadMode && !isConfiguringGraph() && slot.link != null) {
                 const slotIdx = entry?.index ?? node.inputs.indexOf(slot);
                 // Disconnect invokes arbitrary extension callbacks, including
                 // synchronous reconfiguration. Rebuild before further lookups.

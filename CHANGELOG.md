@@ -2,6 +2,15 @@
 
 ## 2026-10-03
 
+### Version: 1.0.22
+
+- **Fix**
+  - Preserve Smart LM Loader and Smart Detection subgraph connections when restoring workflows from generated images. Prevent mode-chip restoration callbacks from disconnecting inputs and shifting promoted widget values into the wrong fields.
+
+**Changed files:**
+- `js/smartllm-widget-performance-utils.js`
+- `pyproject.toml`
+
 ### Version: 1.0.21
 
 - **Fix**
