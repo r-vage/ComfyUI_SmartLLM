@@ -1,9 +1,9 @@
+import { fetchModelEntry, metadataGeneration, reloadRegistry, registryNodes, fetchModelList, fetchTaskList, expireMetadataCache } from './smartllm-metadata.js';
 import {
     app,
     api
 } from './comfy/index.js';
 import {
-    debounce,
     notifyVue,
     createWidgetVisibilityManager,
     isVueMode,
@@ -136,58 +136,6 @@ function getFamilySupport(family) {
         ...(FAMILY_WIDGET_SUPPORT[family] || {})
     };
 }
-let modelListCache = null;
-let modelListPromise = null;
-let taskListCache = {};
-async function fetchModelList(force = false) {
-    if (!force && modelListCache) return modelListCache;
-    if (modelListPromise) return modelListPromise;
-    modelListPromise = (async () => {
-        try {
-            const resp = await fetch('/smartlml/model_list');
-            if (resp.ok) {
-                modelListCache = await resp.json();
-            } else {
-                console.warn('[SmartLLM] Failed to fetch model list');
-                modelListCache = [];
-            }
-        } catch (e) {
-            console.warn('[SmartLLM] Error fetching model list:', e);
-            modelListCache = [];
-        }
-        modelListPromise = null;
-        return modelListCache;
-    })();
-    return modelListPromise;
-}
-async function fetchModelEntry(displayName) {
-    if (!displayName) return null;
-    try {
-        const resp = await fetch(`/smartlml/model_entry?name=${encodeURIComponent(displayName)}`);
-        if (resp.ok) return resp.json();
-    } catch (e) {
-        console.warn('[SmartLLM] Error fetching model entry:', e);
-    }
-    return null;
-}
-async function fetchTaskList(hasVision, family = '') {
-    const key = `${hasVision}|${family}`;
-    if (taskListCache[key]) return taskListCache[key];
-    try {
-        let url = `/smartlml/task_list?has_vision=${hasVision}`;
-        if (family) url += `&family=${encodeURIComponent(family)}`;
-        const resp = await fetch(url);
-        if (resp.ok) {
-            const tasks = await resp.json();
-            taskListCache[key] = tasks;
-            return tasks;
-        }
-    } catch (e) {
-        console.warn('[SmartLLM] Error fetching task list:', e);
-    }
-    return [];
-}
-
 function updateDropdown(widget, values, defaultValue = null) {
     if (!widget) return;
     widget.options.values = values;
@@ -342,8 +290,7 @@ const smartLLMLoaderExtension = {
                 }
                 node._SmartLLM_prevMultiTask = multiTaskNow;
                 syncModeToBacking(selectedSet);
-                vis.markUserDriven();
-                updateAllVisibility();
+                updateAllVisibility(true);
             };
             // Seed the previous-state tracker from the initial mode set.
             node._SmartLLM_prevMultiTask = new Set(modeBarWidget.value).has('Multi-Task');
@@ -352,7 +299,11 @@ const smartLLMLoaderExtension = {
             }
             let currentModelEntry = null;
             let modelChangeSequence = 0;
-            async function onModelChanged(modelName) {
+            vis.onCleanup(() => { modelChangeSequence++; });
+            node._SmartLLM_refreshMetadata = () => onModelChanged(modelWidget?.value);
+            async function onModelChanged(modelName, userDriven = false) {
+                if (vis.isRemoved()) return;
+                const generation = metadataGeneration();
                 const sequence = ++modelChangeSequence;
                 const backend = getBackendFromName(modelName);
                 const isWD14 = backend === 'wd14';
@@ -362,7 +313,7 @@ const smartLLMLoaderExtension = {
                 if (modelName) {
                     entry = await fetchModelEntry(modelName);
                 }
-                if (sequence !== modelChangeSequence) return;
+                if (sequence !== modelChangeSequence || generation !== metadataGeneration() || vis.isRemoved()) return;
                 currentModelEntry = entry;
                 if (isGGUF && currentModelEntry?.quantizations?.length) {
                     updateDropdown(quantizationWidget, currentModelEntry.quantizations, currentModelEntry.quantizations[0]);
@@ -375,7 +326,7 @@ const smartLLMLoaderExtension = {
                         fetchTaskList(hasVision, family),
                         fetchTaskList(false, ''),
                     ]);
-                    if (sequence !== modelChangeSequence) return;
+                    if (sequence !== modelChangeSequence || generation !== metadataGeneration() || vis.isRemoved()) return;
                     const taskWidget = getWidget('task');
                     if (taskWidget && tasks.length) {
                         updateTaskDropdown(taskWidget, tasks);
@@ -389,7 +340,7 @@ const smartLLMLoaderExtension = {
                         }
                     }
                 }
-                updateAllVisibility();
+                updateAllVisibility(userDriven);
             }
             if (modelWidget) {
                 if (modelWidget.options?.values) {
@@ -423,13 +374,11 @@ const smartLLMLoaderExtension = {
                         if (!newVal) newVal = opts.find(v => !isSeparatorEntry(v)) || '';
                         modelWidget.value = newVal;
                         if (origModelCb) origModelCb.call(this, newVal);
-                        vis.markUserDriven();
-                        onModelChanged(newVal);
+                        onModelChanged(newVal, true);
                         return;
                     }
                     if (origModelCb) origModelCb.apply(this, arguments);
-                    vis.markUserDriven();
-                    onModelChanged(value);
+                    onModelChanged(value, true);
                 };
             }
             const deleteBtn = node.addWidget('button', '🗑️ Delete Model', '', async () => {
@@ -508,15 +457,17 @@ const smartLLMLoaderExtension = {
                 const prevTaskCb = taskWidget.callback;
                 taskWidget.callback = function(value) {
                     if (prevTaskCb) prevTaskCb.call(this, value);
-                    vis.markUserDriven();
-                    updateAllVisibility();
+                    updateAllVisibility(true);
                 };
             }
             for (const tName of ['task_2', 'task_3', 'task_4']) {
                 addSeparatorGuard(getWidget(tName));
             }
 
-            function updateAllVisibility() {
+            function updateAllVisibility(userDriven = false) {
+                if (vis.isRemoved()) return;
+                const entries = [];
+                const show = (name, visible) => entries.push([name, visible]);
                 if (node.id === -1) return;
                 if (!node.widgets) return;
                 const modelName = modelWidget?.value || '';
@@ -544,66 +495,63 @@ const smartLLMLoaderExtension = {
                         if (!node._SmartLLM_priorTask) node._SmartLLM_priorTask = taskWidget.value;
                         taskWidget.value = 'Direct Chat';
                     }
-                    taskWidget.disabled = true;
+                    if (!taskWidget.disabled) taskWidget.disabled = true;
                 } else if (taskWidget) {
                     if (node._SmartLLM_priorTask) {
                         taskWidget.value = node._SmartLLM_priorTask;
                         node._SmartLLM_priorTask = null;
                     }
-                    taskWidget.disabled = false;
+                    if (taskWidget.disabled) taskWidget.disabled = false;
                 }
-                vis.setVisible('quantization', isGGUF);
-                vis.setVisible('task', !isWD14);
-                vis.setVisible('user_prompt', !isWD14);
-                vis.setVisible('max_tokens', !isWD14);
-                vis.setVisible('context_size', !isWD14);
-                vis.setVisible('attention_mode', !isWD14 && isTransformers);
+                show('quantization', isGGUF);
+                show('task', !isWD14);
+                show('user_prompt', !isWD14);
+                show('max_tokens', !isWD14);
+                show('context_size', !isWD14);
+                show('attention_mode', !isWD14 && isTransformers);
                 const task2 = getWidget('task_2')?.value || 'None';
                 const task3 = getWidget('task_3')?.value || 'None';
-                vis.setVisible('task_2', !isWD14 && multiTask);
-                vis.setVisible('task_3', !isWD14 && multiTask && task2 !== 'None');
-                vis.setVisible('task_4', !isWD14 && multiTask && task2 !== 'None' && task3 !== 'None');
+                show('task_2', !isWD14 && multiTask);
+                show('task_3', !isWD14 && multiTask && task2 !== 'None');
+                show('task_4', !isWD14 && multiTask && task2 !== 'None' && task3 !== 'None');
                 const support = getFamilySupport(family);
                 const advWidgets = ['device', 'temperature', 'top_p', 'top_k', 'num_beams', 'do_sample', 'repetition_penalty', 'frame_count', 'use_torch_compile', ];
                 for (const name of advWidgets) {
-                    vis.setVisible(name, !isWD14 && showAdvanced && support[name] !== false);
+                    show(name, !isWD14 && showAdvanced && support[name] !== false);
                 }
                 // Universal advanced sampling (all generative backends except Florence)
                 const isFlorence = family === 'Florence';
                 const advUniv = ['min_p', 'stop_sequences'];
                 for (const name of advUniv) {
-                    vis.setVisible(name, !isWD14 && !isFlorence && showAdvanced);
+                    show(name, !isWD14 && !isFlorence && showAdvanced);
                 }
                 // llama.cpp-family-only sampling (mirostat / repeat_last_n)
                 // Backends: gguf, llamacpp, ollama (exposes mirostat via options)
                 const isLlamaCppFamily = (backend === 'gguf' || backend === 'llamacpp' || backend === 'ollama');
                 const advLlamaCpp = ['mirostat', 'mirostat_eta', 'mirostat_tau', 'repeat_last_n'];
                 for (const name of advLlamaCpp) {
-                    vis.setVisible(name, !isWD14 && !isFlorence && showAdvanced && isLlamaCppFamily);
+                    show(name, !isWD14 && !isFlorence && showAdvanced && isLlamaCppFamily);
                 }
-                vis.setVisible('threshold', isWD14);
-                vis.setVisible('char_threshold', isWD14);
+                show('threshold', isWD14);
+                show('char_threshold', isWD14);
 
-                vis.setVisible('replace_underscore', isWD14);
+                show('replace_underscore', isWD14);
                 for (const backing of Object.values(MODE_TO_BACKING)) {
-                    vis.setVisible(backing, false);
+                    show(backing, false);
                 }
                 const showDelete = modeSet.has('Delete') && modelName && !isSeparatorEntry(modelName);
-                if (deleteBtn) vis.setVisible(deleteBtn.name, showDelete);
-                vis.setVisible('seed', true);
+                if (deleteBtn) show(deleteBtn.name, showDelete);
+                show('seed', true);
 
                 // Smart resize logic:
                 // - In WD14 mode, shrink the node to be compact.
                 // - In LLM/VLM mode, only grow the node if it's too small for the visible widgets,
                 //   preserving user's custom height if they manually resized it.
-                if (isWD14) {
-                    smartResize(node);
-                } else {
-                    const computed = node.computeSize();
-                    if (computed && node.size[1] < computed[1]) {
-                        smartResize(node);
-                    }
-                }
+                vis.resizeIfChanged(vis.setVisibleBatch(entries, { userDriven }), {
+                    resize() {
+                        if (isWD14 || node.size[1] < node.computeSize()[1]) smartResize(node);
+                    },
+                });
             }
             for (const tName of ['task_2', 'task_3', 'task_4']) {
                 const tw = getWidget(tName);
@@ -611,11 +559,15 @@ const smartLLMLoaderExtension = {
                     const prevCb = tw.callback;
                     tw.callback = function(value) {
                         if (prevCb) prevCb.call(this, value);
-                        vis.markUserDriven();
-                        updateAllVisibility();
+                        updateAllVisibility(true);
                     };
                 }
             }
+            let connectionFrame = null;
+            vis.onCleanup(() => {
+                if (connectionFrame !== null) cancelAnimationFrame(connectionFrame);
+                connectionFrame = null;
+            });
             const origOnConnectionsChange = node.onConnectionsChange;
             node.onConnectionsChange = function(type, index, connected, linkInfo) {
                 if (origOnConnectionsChange) origOnConnectionsChange.apply(this, arguments);
@@ -625,7 +577,11 @@ const smartLLMLoaderExtension = {
                 if (type === 1) {
                     const input = this.inputs[index];
                     if (input && (input.name === 'system_prompt' || input.name === 'user_prompt')) {
-                        requestAnimationFrame(() => updateAllVisibility());
+                        if (connectionFrame !== null) return;
+                        connectionFrame = requestAnimationFrame(() => {
+                            connectionFrame = null;
+                            updateAllVisibility();
+                        });
                     }
                 }
             };
@@ -724,6 +680,7 @@ const smartLLMLoaderExtension = {
             if (!node._SmartLLM_initialized && !isConfiguringGraph()) {
                 node._SmartLLM_initialized = true;
                 requestAnimationFrame(() => {
+                    if (vis.isRemoved()) return;
                     if (node._SmartLLM_configuredFromWorkflow) return;
                     if (modelWidget && isSeparatorEntry(modelWidget.value)) {
                         const opts = modelWidget.options?.values || [];
@@ -749,6 +706,8 @@ const smartLLMLoaderExtension = {
             }
             const origOnConfigure = node.onConfigure;
             node.onConfigure = function() {
+                modelChangeSequence++;
+                vis.resetLayout();
                 node._SmartLLM_configuredFromWorkflow = true;
                 if (origOnConfigure) origOnConfigure.apply(this, arguments);
                 if (modeBarWidget) {
@@ -827,23 +786,19 @@ const smartLLMLoaderExtension = {
             const hasNodes = (app.graph?._nodes || []).some(n => n.type === NODE_NAME);
             if (!hasNodes) return;
             lastExecRefreshTime = now;
-            modelListCache = null;
-            taskListCache = {};
+            expireMetadataCache();
         });
         onSmartLLMRegistryChanged(() => smartLLMLoaderExtension.refreshComboInNodes({ reload: false }));
     },
     async refreshComboInNodes({ reload = true } = {}) {
         // R-key refresh — only run if at least one Smart LM Loader node exists.
-        const nodes = app.graph?._nodes || [];
-        const targets = nodes.filter(n => n.type === NODE_NAME);
+        const targets = registryNodes(app.rootGraph ?? app.graph, NODE_NAME);
         if (targets.length === 0) return;
         if (reload) {
-            try { await fetch('/smartlml/registry/reload', { method: 'POST' }); } catch (_) {}
+            await reloadRegistry();
         }
-        modelListCache = null;
-        taskListCache = {};
         try {
-            const fresh = await fetchModelList(true);
+            const fresh = await fetchModelList();
             if (!Array.isArray(fresh) || fresh.length === 0) return;
             // API returns objects: build grouped name list with separator tokens.
             const vision = [], text = [], wd14 = [];
@@ -860,6 +815,7 @@ const smartLLMLoaderExtension = {
             if (wd14.length)   { raw.push('__SEP__WD14_MODELS__');   raw.push(...wd14.sort()); }
             const mapped = mapModelSeparators(raw);
             for (const node of targets) {
+                if (!node.graph?._nodes?.includes(node)) continue;
                 const mw = node.widgets?.find(w => w.name === 'model');
                 if (!mw) continue;
                 const prev = mw.value;
@@ -868,9 +824,9 @@ const smartLLMLoaderExtension = {
                     const first = mapped.find(v => !isSeparatorEntry(v));
                     if (first) {
                         mw.value = first;
-                        if (mw.callback) mw.callback(first);
                     }
                 }
+                void node._SmartLLM_refreshMetadata?.();
             }
         } catch (_) {}
     },

@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-03
+
+### Version: 1.0.21
+
+- **Fix**
+  - Match Vue node CSS height to native title-inclusive geometry and resume pending sizing when fresh nodes enter their graph.
+  - Preserve restored links while carrying user intent through delayed model and visibility updates; discard stale or removed-node completions.
+  - Refresh selected-model metadata after registry edits, including unchanged display names and nested subgraphs.
+
+- **Perf**
+  - Batch widget visibility and mount lookups, skip unchanged layout work, and index native widget/slot lookups within owned node passes.
+  - Share concurrent model-entry and task-list requests, retain successful list caches, and invalidate obsolete registry generations.
+  - Add counters-only performance diagnostics without collecting caller stacks.
+
+**Changed files:**
+- `js/smartllm-detection-to-bboxes.js`
+- `js/smartllm-detection.js`
+- `js/smartllm-loader.js`
+- `js/smartllm-metadata.js`
+- `js/smartllm-node-lookup-performance.js`
+- `js/smartllm-widget-performance-utils.js`
+- `pyproject.toml`
+
 ## 2026-09-23
 
 ### Version: 1.0.20

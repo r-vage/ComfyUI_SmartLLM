@@ -1,13 +1,12 @@
+import { fetchModelEntry, metadataGeneration, reloadRegistry, registryNodes, fetchDetectionModelList } from './smartllm-metadata.js';
 import {
     app,
     api
 } from './comfy/index.js';
 import {
-    debounce,
     notifyVue,
     createWidgetVisibilityManager,
     isConfiguringGraph,
-    smartResize,
     isVueMode,
 } from './smartllm-widget-performance-utils.js';
 import {
@@ -129,26 +128,6 @@ function getBackendFromName(displayName) {
     if (displayName.endsWith('-llama.cpp')) return 'llamacpp';
     return 'transformers';
 }
-async function fetchDetectionModelList(force = false) {
-    try {
-        const resp = await fetch('/smartlml/detection/model_list');
-        if (resp.ok) return resp.json();
-    } catch (e) {
-        console.warn('[SmartLLM Detection] Error fetching detection model list:', e);
-    }
-    return [];
-}
-async function fetchModelEntry(displayName) {
-    if (!displayName) return null;
-    try {
-        const resp = await fetch(`/smartlml/model_entry?name=${encodeURIComponent(displayName)}`);
-        if (resp.ok) return resp.json();
-    } catch (e) {
-        console.warn('[SmartLLM Detection] Error fetching model entry:', e);
-    }
-    return null;
-}
-
 function updateDropdown(widget, values, defaultValue = null) {
     if (!widget) return;
     widget.options.values = values;
@@ -222,15 +201,18 @@ const smartLLMDetectionExtension = {
             modeBarWidget.callback = function() {
                 const selectedSet = new Set(modeBarWidget.value);
                 syncModeToBacking(selectedSet);
-                vis.markUserDriven();
-                updateAllVisibility();
+                updateAllVisibility(true);
             };
             for (const backing of Object.values(MODE_TO_BACKING)) {
                 vis.setVisible(backing, false);
             }
             let currentFamily = '';
             let modelChangeSequence = 0;
-            async function onModelChanged(modelName) {
+            vis.onCleanup(() => { modelChangeSequence++; });
+            node._SmartLLM_refreshMetadata = () => onModelChanged(modelWidget?.value);
+            async function onModelChanged(modelName, userDriven = false) {
+                if (vis.isRemoved()) return;
+                const generation = metadataGeneration();
                 const sequence = ++modelChangeSequence;
                 const backend = getBackendFromName(modelName);
                 const isGGUF = backend === 'gguf' || backend === 'llamacpp';
@@ -238,7 +220,7 @@ const smartLLMDetectionExtension = {
                 if (modelName && !isSeparatorEntry(modelName)) {
                     entry = await fetchModelEntry(modelName);
                 }
-                if (sequence !== modelChangeSequence) return;
+                if (sequence !== modelChangeSequence || generation !== metadataGeneration() || vis.isRemoved()) return;
                 currentFamily = entry?.family || '';
                 if (isGGUF && entry?.quantizations?.length) {
                     updateDropdown(quantWidget, entry.quantizations, entry.quantizations[0]);
@@ -249,7 +231,7 @@ const smartLLMDetectionExtension = {
                         updateDropdown(taskWidget, tasks, tasks[0]);
                     }
                 }
-                updateAllVisibility();
+                updateAllVisibility(userDriven);
             }
             if (modelWidget) {
                 if (modelWidget.options?.values) {
@@ -283,13 +265,11 @@ const smartLLMDetectionExtension = {
                         if (!newVal) newVal = opts.find(v => !isSeparatorEntry(v)) || '';
                         modelWidget.value = newVal;
                         if (origModelCb) origModelCb.call(this, newVal);
-                        vis.markUserDriven();
-                        onModelChanged(newVal);
+                        onModelChanged(newVal, true);
                         return;
                     }
                     if (origModelCb) origModelCb.apply(this, arguments);
-                    vis.markUserDriven();
-                    onModelChanged(value);
+                    onModelChanged(value, true);
                 };
             }
             const deleteBtn = node.addWidget('button', '🗑️ Delete Model', '', async () => {
@@ -333,12 +313,14 @@ const smartLLMDetectionExtension = {
                 const origTaskCb = taskWidget.callback;
                 taskWidget.callback = function(value) {
                     if (origTaskCb) origTaskCb.apply(this, arguments);
-                    vis.markUserDriven();
-                    updateAllVisibility();
+                    updateAllVisibility(true);
                 };
             }
 
-            function updateAllVisibility() {
+            function updateAllVisibility(userDriven = false) {
+                if (vis.isRemoved()) return;
+                const entries = [];
+                const show = (name, visible) => entries.push([name, visible]);
                 if (node.id === -1) return;
                 if (!node.widgets) return;
                 const modelName = modelWidget?.value || '';
@@ -347,30 +329,30 @@ const smartLLMDetectionExtension = {
                 const isYOLO = currentFamily === 'YOLO';
                 const modeSet = new Set(modeBarWidget.value);
                 const showAdvanced = modeSet.has('Advanced');
-                vis.setVisible('quantization', isGGUF);
-                vis.setVisible('task', !isYOLO);
+                show('quantization', isGGUF);
+                show('task', !isYOLO);
                 const currentTask = taskWidget?.value || '';
-                vis.setVisible('user_input', isYOLO || TASKS_REQUIRING_USER_INPUT.has(currentTask));
-                vis.setVisible('confidence', true);
-                vis.setVisible('nms_iou_threshold', true);
-                vis.setVisible('detection_filter', true);
-                vis.setVisible('select_index', true);
+                show('user_input', isYOLO || TASKS_REQUIRING_USER_INPUT.has(currentTask));
+                show('confidence', true);
+                show('nms_iou_threshold', true);
+                show('detection_filter', true);
+                show('select_index', true);
                 const showAdjust = modeSet.has('Adjust');
-                vis.setVisible('drop_size', showAdjust);
-                vis.setVisible('crop_factor', showAdjust);
-                vis.setVisible('dilation', showAdjust);
-                vis.setVisible('seed', true);
+                show('drop_size', showAdjust);
+                show('crop_factor', showAdjust);
+                show('dilation', showAdjust);
+                show('seed', true);
                 const support = getDetFamilySupport(currentFamily || '_default');
                 const advWidgets = ['device', 'num_beams', 'do_sample', 'use_torch_compile', 'convert_to_bboxes', 'temperature', 'top_p', 'top_k', 'repetition_penalty', ];
                 for (const name of advWidgets) {
-                    vis.setVisible(name, showAdvanced && support[name] !== false);
+                    show(name, showAdvanced && support[name] !== false);
                 }
                 for (const backing of Object.values(MODE_TO_BACKING)) {
-                    vis.setVisible(backing, false);
+                    show(backing, false);
                 }
                 const showDelete = modeSet.has('Delete') && modelName && !isSeparatorEntry(modelName);
-                if (deleteBtn) vis.setVisible(deleteBtn.name, showDelete);
-                smartResize(node);
+                if (deleteBtn) show(deleteBtn.name, showDelete);
+                vis.resizeIfChanged(vis.setVisibleBatch(entries, { userDriven }));
             }
             node._SmartLLMDetection_lastSeed = undefined;
             node._SmartLLMDetection_cachedInputSeed = null;
@@ -469,6 +451,7 @@ const smartLLMDetectionExtension = {
             if (!node._SmartLLMDetection_initialized && !isConfiguringGraph()) {
                 node._SmartLLMDetection_initialized = true;
                 requestAnimationFrame(() => {
+                    if (vis.isRemoved()) return;
                     if (node._SmartLLMDetection_configuredFromWorkflow) return;
                     if (modelWidget && isSeparatorEntry(modelWidget.value)) {
                         const opts = modelWidget.options?.values || [];
@@ -494,6 +477,8 @@ const smartLLMDetectionExtension = {
             }
             const origOnConfigure = node.onConfigure;
             node.onConfigure = function() {
+                modelChangeSequence++;
+                vis.resetLayout();
                 node._SmartLLMDetection_configuredFromWorkflow = true;
                 if (origOnConfigure) origOnConfigure.apply(this, arguments);
                 if (modeBarWidget) {
@@ -562,17 +547,17 @@ const smartLLMDetectionExtension = {
     },
     async refreshComboInNodes({ reload = true } = {}) {
         // R-key refresh — only run if at least one Smart Detection node exists.
-        const nodes = app.graph?._nodes || [];
-        const targets = nodes.filter(n => n.type === NODE_NAME);
+        const targets = registryNodes(app.rootGraph ?? app.graph, NODE_NAME);
         if (targets.length === 0) return;
         if (reload) {
-            try { await fetch('/smartlml/registry/reload', { method: 'POST' }); } catch (_) {}
+            await reloadRegistry();
         }
         try {
-            const fresh = await fetchDetectionModelList(true);
+            const fresh = await fetchDetectionModelList();
             if (!Array.isArray(fresh) || fresh.length === 0) return;
             const mapped = mapModelSeparators(fresh);
             for (const node of targets) {
+                if (!node.graph?._nodes?.includes(node)) continue;
                 const mw = node.widgets?.find(w => w.name === 'model_name');
                 if (!mw) continue;
                 const prev = mw.value;
@@ -581,9 +566,9 @@ const smartLLMDetectionExtension = {
                     const first = mapped.find(v => !isSeparatorEntry(v));
                     if (first) {
                         mw.value = first;
-                        if (mw.callback) mw.callback(first);
                     }
                 }
+                void node._SmartLLM_refreshMetadata?.();
             }
         } catch (_) {}
     },

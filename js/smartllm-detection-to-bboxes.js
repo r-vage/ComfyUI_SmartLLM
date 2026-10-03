@@ -3,7 +3,6 @@ import {
     createWidgetVisibilityManager,
     debounce,
     isConfiguringGraph,
-    smartResize,
 } from './smartllm-widget-performance-utils.js';
 const NODE_NAME = 'Detection to Bboxes [Eclipse]';
 app.registerExtension({
@@ -15,24 +14,24 @@ app.registerExtension({
             const ret = origOnNodeCreated ? origOnNodeCreated.apply(this, arguments) : undefined;
             const node = this;
             const vis = createWidgetVisibilityManager(node);
-            const updateVisibility = () => {
+            const updateVisibility = (userDriven = false) => {
+                if (vis.isRemoved()) return;
                 if (node.id === -1) return;
                 const getMask = vis.getValue('get_mask_from_image');
                 const combineMasks = vis.getValue('combine_masks');
-                vis.setVisible('detect_color', getMask);
-                vis.setVisible('threshold', getMask);
-                vis.setVisible('min_area', getMask);
-                vis.setVisible('indices', !combineMasks);
-                smartResize(node);
+                vis.resizeIfChanged(vis.setVisibleBatch([
+                    ['detect_color', getMask], ['threshold', getMask],
+                    ['min_area', getMask], ['indices', !combineMasks],
+                ], { userDriven }));
             };
             const debouncedUpdate = debounce(updateVisibility, 100);
+            vis.onCleanup(() => debouncedUpdate.cancel());
             const getMaskW = node.widgets?.find((w) => w.name === 'get_mask_from_image');
             if (getMaskW) {
                 const origCb = getMaskW.callback;
                 getMaskW.callback = function () {
                     if (origCb) origCb.apply(this, arguments);
-                    vis.markUserDriven();
-                    debouncedUpdate();
+                    debouncedUpdate(true);
                 };
             }
             const combineMasksW = node.widgets?.find((w) => w.name === 'combine_masks');
@@ -40,8 +39,7 @@ app.registerExtension({
                 const origCb = combineMasksW.callback;
                 combineMasksW.callback = function () {
                     if (origCb) origCb.apply(this, arguments);
-                    vis.markUserDriven();
-                    debouncedUpdate();
+                    debouncedUpdate(true);
                 };
             }
 
@@ -49,6 +47,7 @@ app.registerExtension({
             if (!node._SmartLLMDetectionToBboxes_initialized && !isConfiguringGraph()) {
                 node._SmartLLMDetectionToBboxes_initialized = true;
                 requestAnimationFrame(() => {
+                    if (vis.isRemoved()) return;
                     updateVisibility();
                     const oldHeight = node.size[1];
                     node.size[1] = 0;
@@ -62,6 +61,8 @@ app.registerExtension({
             }
             const origConfigure = node.onConfigure;
             node.onConfigure = function () {
+                debouncedUpdate.cancel();
+                vis.resetLayout();
                 origConfigure?.apply(this, arguments);
                 updateVisibility();
             };
