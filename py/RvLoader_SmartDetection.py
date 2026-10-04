@@ -1161,6 +1161,7 @@ class RvLoader_Detection(io.ComfyNode):
                     log.warning(
                         _LOG_PREFIX,
                         f"YOLO model '{filename}' not found locally or online — skipping detection.",
+                        notify=True,
                     )
                     empty_mask = torch.zeros((1, 64, 64), dtype=torch.float32)
                     empty_segs = ((64, 64), [])

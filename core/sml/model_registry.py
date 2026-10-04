@@ -986,6 +986,10 @@ def invalidate_cache():
 
 _YOLO_REGISTRY_FILE = "yolo_models.json"
 _RETIRED_CURATED_YOLO_ARTIFACTS = {
+    ("Bingsu/adetailer", "deepfashion2_yolov8s-seg.pt"),
+    ("Bingsu/adetailer", "person_yolov8m-seg.pt"),
+    ("Bingsu/adetailer", "person_yolov8n-seg.pt"),
+    ("Bingsu/adetailer", "person_yolov8s-seg.pt"),
     ("Anzhc/Anzhcs_YOLOs", "Anzhc Eyes -seg-hd.pt"),
     ("Anzhc/Anzhcs_YOLOs", "Anzhc Face -seg.pt"),
     ("Anzhc/Anzhcs_YOLOs", "Anzhc HeadHair seg y8m.pt"),

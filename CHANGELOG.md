@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-10-04
+
+### Version: 1.0.24
+
+- **Fix**
+  - Restore Hugging Face downloads, including YOLO checkpoints, on older Hub versions by passing the optional custom progress class only when supported. Preserve pinned revisions, integrity verification, and restricted YOLO loading.
+  - Show native ComfyUI error and warning toasts for execution, input validation, settings, model refreshes, and Registry Manager actions. Retain console diagnostics, inline status, and deletion confirmations.
+  - Report skipped detections, vision and task fallbacks, and invalid detection selections without changing execution or security policies.
+  - Retire four Bingsu YOLO downloads explicitly flagged unsafe by Hugging Face from bundled registry entries and provenance. Preserve installed files as local-only discoveries under restricted loading.
+
+**Changed files:**
+- `.defaults/.manifest.json`
+- `.defaults/registry/yolo_models.json.example`
+- `core/logger.py`
+- `core/notifications.py`
+- `core/sml/backend_vllm_native.py`
+- `core/sml/loader_base.py`
+- `core/sml/model_files.py`
+- `core/sml/model_registry.py`
+- `js/smartllm-detection.js`
+- `js/smartllm-error-notifications.js`
+- `js/smartllm-loader.js`
+- `js/smartllm-metadata.js`
+- `js/smartllm-notifications.js`
+- `js/smartllm-registry-manager.js`
+- `js/smartllm-settings.js`
+- `py/RvConversion_DetectionToBboxes.py`
+- `py/RvLoader_SmartDetection.py`
+- `py/RvLoader_SmartLMLoader.py`
+- `pyproject.toml`
+
 ## 2026-10-03
 
 ### Version: 1.0.23

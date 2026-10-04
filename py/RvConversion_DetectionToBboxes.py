@@ -466,6 +466,7 @@ class RvConversion_DetectionToBboxes(io.ComfyNode):
                     log.warning(
                         _LOG_PREFIX,
                         f"Invalid indices format '{indices}', using all detections",
+                        notify=True,
                     )
                     selected_indices = None
 
@@ -488,6 +489,7 @@ class RvConversion_DetectionToBboxes(io.ComfyNode):
                         log.warning(
                             _LOG_PREFIX,
                             f"Index {idx} out of range (0-{len(run_masks)-1}), skipping",
+                            notify=True,
                         )
 
                 if filtered_masks:

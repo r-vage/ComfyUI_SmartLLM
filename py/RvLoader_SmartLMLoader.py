@@ -846,6 +846,7 @@ def _generate_for_family(
             log.warning(
                 "Florence-2",
                 f"Video not supported ({input_image.shape[0]} frames), using first frame only",
+                notify=True,
             )
 
         result, data = generate_transformers(
@@ -1012,6 +1013,7 @@ def _generate_with_h3_recovery(**generation_kwargs):
             _LOG_PREFIX,
             f"MiniMax H3 corrective retry remained incomplete ({issue}); "
             "returning a structured fallback",
+            notify=True,
         )
         result = _h3_fallback_output(
             task_name,
@@ -1099,7 +1101,7 @@ def _run_multi_task_chain(
             and canonicalize_task_name(tasks_to_run[idx - 1]) == "Song Lyrics"
         )
         if (not current_text or not current_text.strip()) and not requires_song_source:
-            log.warning(_LOG_PREFIX, f"Task {idx} returned empty, stopping chain")
+            log.warning(_LOG_PREFIX, f"Task {idx} returned empty, stopping chain", notify=True)
             break
 
         chained_llm_mode = task_name.lower().replace(" ", "_")
@@ -2244,6 +2246,7 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
             log.warning(
                 _LOG_PREFIX,
                 f"Unknown family '{family_str}' → routing via {model_family}",
+                notify=True,
             )
 
         # Align inputs for list execution. The H3 group occupies one list item,
@@ -2275,7 +2278,7 @@ class RvLoader_SmartModelLoader_LM(io.ComfyNode):
                 if single_img is not None and model_has_vision:
                     input_image = single_img
                 elif model_has_vision and single_img is None:
-                    log.warning(_LOG_PREFIX, "No image provided for vision model")
+                    log.warning(_LOG_PREFIX, "No image provided for vision model", notify=True)
 
                 # ── Generate (with system-prompt override if connected) ───
                 _override_token = push_system_prompt_override(system_prompt)

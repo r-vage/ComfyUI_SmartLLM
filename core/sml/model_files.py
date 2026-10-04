@@ -1937,13 +1937,14 @@ def _download_repository_file(
             "repo_id": repo_id,
             "filename": filename,
             "local_dir": str(local_dir),
-            "tqdm_class": progress_class,
             "force_download": force_download,
             "revision": revision,
         }
-        if "local_dir_use_symlinks" in inspect.signature(
-            hf_hub_download
-        ).parameters:
+        download_parameters = inspect.signature(hf_hub_download).parameters
+        # Older Hub APIs (including 0.36.x) lack this optional progress hook.
+        if "tqdm_class" in download_parameters:
+            download_args["tqdm_class"] = progress_class
+        if "local_dir_use_symlinks" in download_parameters:
             download_args["local_dir_use_symlinks"] = False
         if token:
             download_args["token"] = token

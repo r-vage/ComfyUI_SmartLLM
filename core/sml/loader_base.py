@@ -189,12 +189,14 @@ def _resolve_vllm_quantization(
             log.warning(
                 _LOG_PREFIX,
                 "Mistral3/Pixtral vision models don't support BitsAndBytes in vLLM - using native dtype",
+                notify=True,
             )
             return None
         if quantization == "8bit":
             log.warning(
                 _LOG_PREFIX,
                 f"{backend_label} bitsandbytes only supports 4-bit. Falling back to 4-bit.",
+                notify=True,
             )
         else:
             log.debug(
@@ -242,6 +244,7 @@ def _resolve_sglang_quantization(
         log.warning(
             _LOG_PREFIX,
             "SGLang doesn't support bitsandbytes quantization - using native dtype",
+            notify=True,
         )
         return None
     elif quantization in ("fp16", "bf16", "fp32", "none"):
@@ -890,6 +893,7 @@ def load_model_with_backend(
                 _LOG_PREFIX,
                 f"Auto Detect: {model_family} not supported with {loading_method}, "
                 f"falling back to Transformers",
+                notify=True,
             )
             method = LoadingMethod.TRANSFORMERS
             loading_method = method.value
@@ -901,6 +905,7 @@ def load_model_with_backend(
                 log.warning(
                     _LOG_PREFIX,
                     f"  {model_family} also unsupported by Transformers, using LLM (Text-Only)",
+                    notify=True,
                 )
                 family = ModelFamily.LLM_TEXT
                 model_family = family.value
@@ -1129,6 +1134,7 @@ def load_model_with_backend(
                     log.warning(
                         _LOG_PREFIX,
                         "Qwen chat handler not available, falling back to Llava",
+                        notify=True,
                     )
                     from llama_cpp.llama_chat_format import Llava16ChatHandler  # type: ignore
 
@@ -1215,10 +1221,10 @@ def load_model_with_backend(
                             f"3) Build llama-cpp-python from source with latest llama.cpp"
                         )
                     log.warning(_LOG_PREFIX, f"Failed to load with vision support: {e}")
-                    log.warning(_LOG_PREFIX, "Falling back to text-only mode")
+                    log.warning(_LOG_PREFIX, "Falling back to text-only mode", notify=True)
                 except Exception as e:
                     log.warning(_LOG_PREFIX, f"Failed to load with vision support: {e}")
-                    log.warning(_LOG_PREFIX, "Falling back to text-only mode")
+                    log.warning(_LOG_PREFIX, "Falling back to text-only mode", notify=True)
 
             # Text-only LLM
             log.msg(_LOG_PREFIX, f"Loading LLM GGUF: {model_file.name}")
@@ -1577,6 +1583,7 @@ def load_model_with_backend(
                 log.warning(
                     _LOG_PREFIX,
                     f"Model is pre-quantized ({quant_type}), ignoring {quantization} request",
+                    notify=True,
                 )
             # For FP8: we'll use FineGrainedFP8Config(dequantize=True) to convert to BF16
             # For others: load as-is with native dtype handling
@@ -1705,7 +1712,10 @@ def load_model_with_backend(
                     model = torch.compile(model, mode="reduce-overhead")
                     log.msg(_LOG_PREFIX, "✓ Applied torch.compile optimization")
                 except Exception as e:
-                    log.warning(_LOG_PREFIX, f"torch.compile failed: {e}")
+                    log.warning(
+                        _LOG_PREFIX, f"torch.compile failed: {e}",
+                        notify="Model compilation failed; continuing without torch.compile. See the server log.",
+                    )
             elif use_torch_compile and is_quantized:
                 log.debug(
                     _LOG_PREFIX,
@@ -1797,7 +1807,10 @@ def load_model_with_backend(
                     model = torch.compile(model, mode="reduce-overhead")
                     log.msg(_LOG_PREFIX, "✓ Applied torch.compile optimization")
                 except Exception as e:
-                    log.warning(_LOG_PREFIX, f"torch.compile failed: {e}")
+                    log.warning(
+                        _LOG_PREFIX, f"torch.compile failed: {e}",
+                        notify="Model compilation failed; continuing without torch.compile. See the server log.",
+                    )
             elif use_torch_compile and is_quantized:
                 log.debug(
                     _LOG_PREFIX,

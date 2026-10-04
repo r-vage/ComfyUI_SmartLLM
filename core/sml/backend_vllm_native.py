@@ -522,7 +522,7 @@ def generate_vllm(
             )
             log.debug(_LOG_PREFIX, f"Vision error details: {type(e).__name__}: {e}")
             # Fall back to text-only
-            log.warning(_LOG_PREFIX, "Falling back to text-only generation")
+            log.warning(_LOG_PREFIX, "Falling back to text-only generation", notify=True)
             outputs = llm.generate([prompt], sampling_params=sampling_params)
     elif llm_mode:
         # Text-only LLM with few-shot examples

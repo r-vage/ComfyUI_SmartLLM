@@ -1,3 +1,4 @@
+import { showSmartLLMToast } from './smartllm-notifications.js';
 import { app, api } from './comfy/index.js';
 import { emitSmartLLMRegistryChanged } from './smartllm-registry-events.js';
 
@@ -423,6 +424,7 @@ class RegistryManager {
     setStatus(message, kind = '') {
         this.status.textContent = message;
         this.status.dataset.kind = kind;
+        if (kind === 'error' || kind === 'warn') showSmartLLMToast('Registry Manager', message, kind);
     }
 
     setBusy(value) {

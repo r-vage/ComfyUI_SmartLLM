@@ -1,4 +1,5 @@
 import { app } from './comfy/index.js';
+import { showSmartLLMToast } from './smartllm-notifications.js';
 import {
     applyComboChipColor,
     DEFAULT_COMBO_CHIP_COLOR,
@@ -45,7 +46,7 @@ function registerCredentialSetting({ id, name, key, configured, tooltip, sortOrd
                 await updateConfig({ [key]: value });
                 app.ui.settings.setSettingValue?.(id, value ? TOKEN_MASK : '');
             } catch (error) {
-                console.error(`[SmartLLM] Failed to update ${name}:`, error);
+                showSmartLLMToast('Credential update failed', `${name} could not be saved. Check the server log.`);
             }
         }),
     });
@@ -65,9 +66,10 @@ app.registerExtension({
         };
         try {
             const response = await fetch('/smartlml/config/all');
-            if (response.ok) config = { ...config, ...(await response.json()) };
+            if (!response.ok) throw new Error(`Configuration request failed (HTTP ${response.status}).`);
+            config = { ...config, ...(await response.json()) };
         } catch (error) {
-            console.error('[SmartLLM] Failed to fetch configuration:', error);
+            showSmartLLMToast('Could not read settings', error, 'warn');
         }
         const chipColor = applyComboChipColor(config.chip_color);
 
@@ -81,7 +83,7 @@ app.registerExtension({
             sortOrder: 400,
             onChange: afterInitialChange(async (value) => {
                 try { await updateConfig({ llm_models_path: value }); }
-                catch (error) { console.error('[SmartLLM] Failed to update model path:', error); }
+                catch (error) { showSmartLLMToast('Model path update failed', error); }
             }),
         });
         app.ui.settings.addSetting({
@@ -98,7 +100,7 @@ app.registerExtension({
                     await updateConfig({ chip_color: normalized });
                     applyComboChipColor(normalized);
                 } catch (error) {
-                    console.error('[SmartLLM] Failed to update chip color:', error);
+                    showSmartLLMToast('Chip color update failed', error);
                 }
             }),
         });
@@ -112,9 +114,12 @@ app.registerExtension({
             sortOrder: 300,
             onChange: afterInitialChange(async (value) => {
                 const attempts = Number.parseInt(value, 10);
-                if (!Number.isInteger(attempts) || attempts < 0 || attempts > 20) return;
+                if (!Number.isInteger(attempts) || attempts < 0 || attempts > 20) {
+                    showSmartLLMToast('Invalid retry count', 'Choose a value from 0 through 20.', 'warn');
+                    return;
+                }
                 try { await updateConfig({ retry_download_attempts: attempts }); }
-                catch (error) { console.error('[SmartLLM] Failed to update retries:', error); }
+                catch (error) { showSmartLLMToast('Retry setting update failed', error); }
             }),
         });
         app.ui.settings.addSetting({
@@ -133,7 +138,7 @@ app.registerExtension({
                         body: JSON.stringify({ log_level: value }),
                     });
                     if (!response.ok) throw new Error('Log-level update failed');
-                } catch (error) { console.error('[SmartLLM] Failed to update log level:', error); }
+                } catch (error) { showSmartLLMToast('Log level update failed', error); }
             }),
         });
         registerCredentialSetting({

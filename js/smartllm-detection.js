@@ -1,4 +1,5 @@
 import { fetchModelEntry, metadataGeneration, reloadRegistry, registryNodes, fetchDetectionModelList } from './smartllm-metadata.js';
+import { showSmartLLMToast } from './smartllm-notifications.js';
 import {
     app,
     api
@@ -287,11 +288,11 @@ const smartLLMDetectionExtension = {
                         }),
                     });
                     const result = await resp.json();
-                    if (!result.success) {
-                        alert(`Delete failed: ${result.error || 'Unknown error'}`);
+                    if (!resp.ok || !result.success) {
+                        showSmartLLMToast('Delete failed', result.error || 'Unknown error');
                     }
                 } catch (e) {
-                    alert(`Delete request failed: ${e.message || e}`);
+                    showSmartLLMToast('Delete request failed', e);
                 }
             }, {
                 serialize: false

@@ -1,4 +1,5 @@
 import { onSmartLLMRegistryChanged } from './smartllm-registry-events.js';
+import { showSmartLLMToast } from './smartllm-notifications.js';
 
 // Pack-local request sharing. Entries are shared only while pending; task and
 // model lists retain their existing successful-result cache until refresh.
@@ -39,12 +40,13 @@ async function request(path, fallback, cache = false) {
     const promise = (async () => {
         try {
             const response = await fetch(path);
-            if (!response.ok) return fallback;
+            if (!response.ok) throw new Error(`Metadata request failed (HTTP ${response.status}).`);
             const value = await response.json();
             if (started !== generation) return fallback;
             if (cache) cached.set(path, value);
             return value;
-        } catch {
+        } catch (error) {
+            if (started === generation) showSmartLLMToast('Could not refresh model information', error, 'warn');
             return fallback;
         }
     })();
@@ -68,7 +70,13 @@ export function fetchDetectionModelList() { return request('/smartlml/detection/
 export function reloadRegistry() {
     if (reloadPromise) return reloadPromise;
     invalidateMetadata();
-    const promise = fetch('/smartlml/registry/reload', { method: 'POST' }).catch(() => null);
+    const promise = fetch('/smartlml/registry/reload', { method: 'POST' }).then(response => {
+        if (!response.ok) throw new Error(`Registry refresh failed (HTTP ${response.status}).`);
+        return response;
+    }).catch(error => {
+        showSmartLLMToast('Registry refresh failed', error);
+        return null;
+    });
     reloadPromise = promise;
     return promise.finally(() => { if (reloadPromise === promise) reloadPromise = null; });
 }

@@ -4,7 +4,6 @@
         "Bingsu/adetailer": {
             "revision": "53cc19de382014514d9d4038601d261a7faa9b7b",
             "expected_sha256": {
-                "deepfashion2_yolov8s-seg.pt": "c319c15e86443ea61f70b40620909d737c47ff2a39381536503ac5c54772f8ac",
                 "face_yolov8m.pt": "717923c19b3f4bbf5250b728f1fa6b2cb72a33aed1d236ea9caf0e21ad943e5f",
                 "face_yolov8n.pt": "70b640f8f60b1cf0dcc72f30caf3da9495eb2fb6509da48c53374ad6806e6a9c",
                 "face_yolov8n_v2.pt": "8f5f2110f83c4e00712993fab48c771d26036e2e80ec62bd5b9cb37c29e36b36",
@@ -12,10 +11,7 @@
                 "face_yolov9c.pt": "d02fe493c31e1bbc6450f4dc6f1db86a02a59322ff1f6d318da0661d72ddd084",
                 "hand_yolov8n.pt": "3991202eb69e9ddcb3b9ba80cdeb41e734ffaf844403d6c9f47d515cd88c6f29",
                 "hand_yolov8s.pt": "70b540063fbc385736d8258970744a4afbc4cbf7932134bae3b24cdadeadec06",
-                "hand_yolov9c.pt": "6f116f686ef5942fa0c1d08db481b3d7622047a97847eccfb2a264f9ce9777f2",
-                "person_yolov8m-seg.pt": "c8ab26f517173b1fe8342d336a09f443eb61cb08dcbfc78d53fff4c2547ae81e",
-                "person_yolov8n-seg.pt": "38fc8aaae97cb6e70be4ec44770005b26ed473471362afcda62a0037d7ccf432",
-                "person_yolov8s-seg.pt": "53c54aec2239355faffc6c5b70d0f3d05042f386f956cbec39cec46ad456f050"
+                "hand_yolov9c.pt": "6f116f686ef5942fa0c1d08db481b3d7622047a97847eccfb2a264f9ce9777f2"
             }
         },
         "Anzhc/Anzhcs_YOLOs": {
@@ -39,13 +35,6 @@
                 "Anzhcs-text-seg-v9-y11m.pt": "af03c22f14faac9559ebf19d0054ca06e0433c517bbae12e2e21876c0ee82ea8"
             }
         }
-    },
-    "deepfashion2_yolov8s-seg": {
-        "repo_id": "https://huggingface.co/Bingsu/adetailer/resolve/main/deepfashion2_yolov8s-seg.pt",
-        "filename": "deepfashion2_yolov8s-seg.pt",
-        "family": "YOLO",
-        "detection_type": "segm",
-        "description": "Fashion segmentation (YOLOv8 small)"
     },
     "face_yolov8m": {
         "repo_id": "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt",
@@ -102,27 +91,6 @@
         "family": "YOLO",
         "detection_type": "segm",
         "description": "Auto-discovered: hand_yolov9c.pt"
-    },
-    "person_yolov8m-seg": {
-        "repo_id": "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8m-seg.pt",
-        "filename": "person_yolov8m-seg.pt",
-        "family": "YOLO",
-        "detection_type": "segm",
-        "description": "Person segmentation (YOLOv8 medium)"
-    },
-    "person_yolov8n-seg": {
-        "repo_id": "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8n-seg.pt",
-        "filename": "person_yolov8n-seg.pt",
-        "family": "YOLO",
-        "detection_type": "segm",
-        "description": "Auto-discovered: person_yolov8n-seg.pt"
-    },
-    "person_yolov8s-seg": {
-        "repo_id": "https://huggingface.co/Bingsu/adetailer/resolve/main/person_yolov8s-seg.pt",
-        "filename": "person_yolov8s-seg.pt",
-        "family": "YOLO",
-        "detection_type": "segm",
-        "description": "Auto-discovered: person_yolov8s-seg.pt"
     },
     "Anzhc Breasts Seg v1 1024m": {
         "repo_id": "https://huggingface.co/Anzhc/Anzhcs_YOLOs/resolve/main/Anzhc%20Breasts%20Seg%20v1%201024m.pt",
